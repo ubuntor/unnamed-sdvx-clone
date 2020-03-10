@@ -1,4 +1,5 @@
 #pragma once
+#include "Shared/Config.hpp"
 #include "stdafx.h"
 
 struct SkinSetting
@@ -108,3 +109,84 @@ private:
 		return targetType;
 	}
 };
+
+DefineEnum(SettingsStyleConfigKeys,
+	// Screen settings
+	BackgroundColor,
+	BorderColor,
+	BorderWidth,
+	TextColor,
+
+	ButtonTextColor,
+	ButtonTextColorHover,
+	ButtonBackgroundColor,
+	ButtonBackgroundColorHover,
+	ButtonBorderColor,
+	ButtonBorderWidth,
+	ButtonPaddingLeftRight,
+	ButtonPaddingTopBottom,
+	ButtonRounding,
+
+	NodeTextColor,
+	NodeArrowColor,
+	NodeArrowBackgroundColor,
+
+	OptionTextColor,
+	OptionColor,
+	OptionColorHover,
+	OptionColorChecked,
+	OptionColorCheckedHover,
+	OptionBorderColor,
+	OptionBorderWidth,
+
+	CheckTextColor,
+	CheckColor,
+	CheckColorHover,
+	CheckColorChecked,
+	CheckColorCheckedHover,
+	CheckBorderColor,
+	CheckBorderWidth,
+
+	SliderBarEmptyColor,
+	SliderBarFilledColor,
+	SliderBallColor,
+	SliderBallColorHover,
+
+	ComboButtonBackgroundColor,
+	ComboButtonTextColor,
+	ComboButtonBackgroundColorHover,
+	ComboButtonTextColorHover,
+	ComboButtonArrowColor,
+
+	ComboBoxBackgroundColor,
+	ComboBoxTextColor,
+	ComboBoxBackgroundColorHover,
+	ComboBoxTextColorHover,
+
+	PropertyTextColor,
+	PropertyBackgroundColor,
+	PropertyArrowColor,
+	PropertyEditTextColor,
+	PropertyEditBackgroundColor,
+	PropertyEditSelectedTextColor,
+	PropertyEditSelectedBackgroundColor,
+
+	EditTextColor,
+	EditBackgroundColor,
+	EditSelectedTextColor,
+	EditSelectedBackgroundColor
+
+
+
+);
+
+// Config for game settings
+class SettingsStyleConfig : public Config<Enum_SettingsStyleConfigKeys>
+{
+public:
+	SettingsStyleConfig();
+	virtual void InitDefaults() override;
+};
+
+// Main config instance
+extern class SettingsStyleConfig g_settingsStyleConfig;

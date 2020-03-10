@@ -322,3 +322,81 @@ void SkinConfig::Set(String key, const String& value)
 		m_dirty = true;
 	}
 }
+
+
+SettingsStyleConfig::SettingsStyleConfig()
+{
+	// Default state
+	Clear();
+	InitDefaults();
+}
+
+void SettingsStyleConfig::InitDefaults()
+{
+	Set(SettingsStyleConfigKeys::BackgroundColor, Colori(40,40,40));
+	Set(SettingsStyleConfigKeys::BorderColor, Colori(0, 0, 0));
+	Set(SettingsStyleConfigKeys::BorderWidth, 0);
+	Set(SettingsStyleConfigKeys::TextColor, Colori(255, 255, 255));
+
+	Set(SettingsStyleConfigKeys::ButtonBorderColor, Colori(0, 128, 255));
+	Set(SettingsStyleConfigKeys::ButtonPaddingLeftRight, 5);
+	Set(SettingsStyleConfigKeys::ButtonPaddingTopBottom, 5);
+	Set(SettingsStyleConfigKeys::ButtonRounding, 0);
+	Set(SettingsStyleConfigKeys::ButtonBorderWidth, 1);
+
+	Set(SettingsStyleConfigKeys::ButtonBackgroundColor, Colori(40,40,40));
+	Set(SettingsStyleConfigKeys::ButtonBackgroundColorHover, Colori(50, 50, 50));
+	Set(SettingsStyleConfigKeys::ButtonTextColor, Colori(156, 156, 156));
+	Set(SettingsStyleConfigKeys::ButtonTextColorHover, Colori(156, 156, 156));
+
+	Set(SettingsStyleConfigKeys::NodeTextColor, Colori(156, 156, 156));
+	Set(SettingsStyleConfigKeys::NodeArrowColor, Colori(175, 175, 175));
+	Set(SettingsStyleConfigKeys::NodeArrowBackgroundColor, Colori(50, 50, 50));
+
+	Set(SettingsStyleConfigKeys::OptionTextColor, Colori(156, 156, 156));
+	Set(SettingsStyleConfigKeys::OptionColor, Colori(100,100,100));
+	Set(SettingsStyleConfigKeys::OptionColorChecked, Colori(45, 45, 45));
+	Set(SettingsStyleConfigKeys::OptionColorCheckedHover, Colori(45, 45, 45));
+	Set(SettingsStyleConfigKeys::OptionColorHover, Colori(120, 120, 120));
+	Set(SettingsStyleConfigKeys::OptionBorderColor, Colori(0,0,0,0));
+	Set(SettingsStyleConfigKeys::OptionBorderWidth, 0);
+
+	Set(SettingsStyleConfigKeys::CheckTextColor, Colori(156, 156, 156));
+	Set(SettingsStyleConfigKeys::CheckColor, Colori(100, 100, 100));
+	Set(SettingsStyleConfigKeys::CheckColorChecked, Colori(45, 45, 45));
+	Set(SettingsStyleConfigKeys::CheckColorCheckedHover, Colori(45, 45, 45));
+	Set(SettingsStyleConfigKeys::CheckColorHover, Colori(120, 120, 120));
+	Set(SettingsStyleConfigKeys::CheckBorderColor, Colori(0, 0, 0, 0));
+	Set(SettingsStyleConfigKeys::CheckBorderWidth, 0);
+
+	Set(SettingsStyleConfigKeys::SliderBarFilledColor, Colori(120,120,120));
+	Set(SettingsStyleConfigKeys::SliderBarEmptyColor, Colori(0,0,0));
+	Set(SettingsStyleConfigKeys::SliderBallColor, Colori(120, 120, 120));
+	Set(SettingsStyleConfigKeys::SliderBallColorHover, Colori(142, 142, 142));
+
+	Set(SettingsStyleConfigKeys::ComboButtonTextColor, Colori(156, 156, 156));
+	Set(SettingsStyleConfigKeys::ComboButtonTextColorHover, Colori(156, 156, 156));
+	Set(SettingsStyleConfigKeys::ComboButtonBackgroundColor, Colori(50, 50, 50));
+	Set(SettingsStyleConfigKeys::ComboButtonBackgroundColorHover, Colori(50, 50, 50));
+	Set(SettingsStyleConfigKeys::ComboButtonArrowColor, Colori(120, 120, 120));
+
+	Set(SettingsStyleConfigKeys::ComboBoxTextColor, Colori(156, 156, 156));
+	Set(SettingsStyleConfigKeys::ComboBoxTextColorHover, Colori(156, 156, 156));
+	Set(SettingsStyleConfigKeys::ComboBoxBackgroundColor, Colori(50, 50, 50));
+	Set(SettingsStyleConfigKeys::ComboBoxBackgroundColorHover, Colori(60, 60, 60));
+
+	Set(SettingsStyleConfigKeys::PropertyTextColor, Colori(156, 156, 156));
+	Set(SettingsStyleConfigKeys::PropertyBackgroundColor, Colori(40, 40, 40));
+	Set(SettingsStyleConfigKeys::PropertyEditTextColor, Colori(156, 156, 156));
+	Set(SettingsStyleConfigKeys::PropertyEditBackgroundColor, Colori(40, 40, 40));
+	Set(SettingsStyleConfigKeys::PropertyEditSelectedTextColor, Colori(40,40,40));
+	Set(SettingsStyleConfigKeys::PropertyEditSelectedBackgroundColor, Colori(156, 156, 156));
+	Set(SettingsStyleConfigKeys::PropertyArrowColor, Colori(156, 156, 156));
+
+	Set(SettingsStyleConfigKeys::EditTextColor, Colori(156, 156, 156));
+	Set(SettingsStyleConfigKeys::EditBackgroundColor, Colori(40, 40, 40));
+	Set(SettingsStyleConfigKeys::EditSelectedTextColor, Colori(40,40,40));
+	Set(SettingsStyleConfigKeys::EditSelectedBackgroundColor, Colori(156, 156, 156));
+
+
+}

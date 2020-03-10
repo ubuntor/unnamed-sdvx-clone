@@ -86,6 +86,17 @@ int nk_propertyi_sdl_text(struct nk_context *ctx, const char *name, int min, int
 	return value;
 }
 
+struct nk_color nk_rgb(uint32 hex)
+{
+	return nk_rgb((hex >> 16) & 0xff, (hex >> 8) & 0xff, hex & 0xff);
+}
+
+struct nk_color nk_rgb(const Color& c)
+{
+	Colori ci = c.ToRGBA8();
+	return nk_rgb(ci.x, ci.y, ci.z);
+}
+
 float nk_propertyf_sdl_text(struct nk_context *ctx, const char *name, float min,
 		    float val, float max, float step, float inc_per_pixel)
 {
@@ -115,6 +126,7 @@ private:
 	Vector<const char*> m_aaModes = { "Off", "2x MSAA", "4x MSAA", "8x MSAA", "16x MSAA" };
 	Vector<String> m_gamePads;
 	Vector<String> m_skins;
+	String m_loadedSkin;
 
 	Vector<GameConfigKeys> m_keyboardKeys = {
 		GameConfigKeys::Key_BTS,
@@ -426,14 +438,12 @@ public:
 			//nk_style_load_all_cursors(m_nctx, atlas->cursors);
 			nk_style_set_font(m_nctx, &fallback->handle);
 		}
-		m_nctx->style.text.color = nk_rgb(255, 255, 255);
-		m_nctx->style.button.border_color = nk_rgb(0, 128, 255);
-		m_nctx->style.button.padding = nk_vec2(5,5);
-		m_nctx->style.button.rounding = 0;
-		m_nctx->style.window.fixed_background = nk_style_item_color(nk_rgb(40, 40, 40));
-		m_nctx->style.slider.bar_normal = nk_rgb(20, 20, 20);
-		m_nctx->style.slider.bar_hover = nk_rgb(20, 20, 20);
-		m_nctx->style.slider.bar_active = nk_rgb(20, 20, 20);
+
+		m_loadSkinStyle();
+
+	
+
+
 
 
 		m_laserColors[0] = g_gameConfig.GetFloat(GameConfigKeys::Laser0Color);
@@ -456,7 +466,203 @@ public:
 		m_multiplayerUsernameLen = multiplayerUsername.length();
 
 		return true;
+	}	
+	
+	void m_loadSkinStyle()
+	{
+		m_loadedSkin = g_gameConfig.GetString(GameConfigKeys::Skin);
+
+		// Global Styling
+		m_nctx->style.text.color = nk_rgb(g_settingsStyleConfig.GetColor(
+			SettingsStyleConfigKeys::TextColor));
+		m_nctx->style.window.fixed_background = nk_style_item_color(nk_rgb(
+			g_settingsStyleConfig.GetColor(SettingsStyleConfigKeys::BackgroundColor)));
+		m_nctx->style.window.background = (nk_rgb(
+			g_settingsStyleConfig.GetColor(SettingsStyleConfigKeys::ComboBoxBackgroundColor)));
+		m_nctx->style.window.border_color = nk_rgb(
+			g_settingsStyleConfig.GetColor(SettingsStyleConfigKeys::BorderColor));
+		m_nctx->style.window.border = g_settingsStyleConfig.GetInt(
+			SettingsStyleConfigKeys::BorderWidth);
+
+		// Button Text
+		m_nctx->style.button.text_normal = nk_rgb(g_settingsStyleConfig.GetColor(
+			SettingsStyleConfigKeys::ButtonTextColor));
+		m_nctx->style.button.text_hover = nk_rgb(g_settingsStyleConfig.GetColor(
+			SettingsStyleConfigKeys::ButtonTextColorHover));
+
+		// Button Background
+		m_nctx->style.button.normal = nk_style_item_color(nk_rgb(g_settingsStyleConfig.GetColor(
+			SettingsStyleConfigKeys::ButtonBackgroundColor)));
+		m_nctx->style.button.hover = nk_style_item_color(nk_rgb(g_settingsStyleConfig.GetColor(
+			SettingsStyleConfigKeys::ButtonBackgroundColorHover)));
+
+		// Button Border
+		m_nctx->style.button.border_color = nk_rgb(g_settingsStyleConfig.GetColor(
+			SettingsStyleConfigKeys::ButtonBorderColor));
+		m_nctx->style.button.padding = nk_vec2(
+			g_settingsStyleConfig.GetInt(SettingsStyleConfigKeys::ButtonPaddingLeftRight),
+			g_settingsStyleConfig.GetInt(SettingsStyleConfigKeys::ButtonPaddingTopBottom));
+		m_nctx->style.button.rounding = g_settingsStyleConfig.GetInt(
+			SettingsStyleConfigKeys::ButtonRounding);
+		m_nctx->style.button.border = g_settingsStyleConfig.GetInt(
+			SettingsStyleConfigKeys::ButtonBorderWidth);
+
+
+		// Tree node styling
+		m_nctx->style.tab.text = nk_rgb(g_settingsStyleConfig.GetColor(
+			SettingsStyleConfigKeys::NodeTextColor));
+		m_nctx->style.tab.node_minimize_button.text_normal = nk_rgb(g_settingsStyleConfig.GetColor(
+			SettingsStyleConfigKeys::NodeArrowColor));
+		m_nctx->style.tab.node_minimize_button.normal = nk_style_item_color(nk_rgb(g_settingsStyleConfig.GetColor(
+			SettingsStyleConfigKeys::NodeArrowBackgroundColor)));
+		m_nctx->style.tab.node_maximize_button.text_normal = nk_rgb(g_settingsStyleConfig.GetColor(
+			SettingsStyleConfigKeys::NodeArrowColor));
+		m_nctx->style.tab.node_maximize_button.normal = nk_style_item_color(nk_rgb(g_settingsStyleConfig.GetColor(
+			SettingsStyleConfigKeys::NodeArrowBackgroundColor)));
+
+		// Option styling
+		m_nctx->style.option.text_normal = nk_rgb(g_settingsStyleConfig.GetColor(
+			SettingsStyleConfigKeys::OptionTextColor));
+		m_nctx->style.option.text_active = nk_rgb(g_settingsStyleConfig.GetColor(
+			SettingsStyleConfigKeys::OptionTextColor));
+		m_nctx->style.option.text_hover = nk_rgb(g_settingsStyleConfig.GetColor(
+			SettingsStyleConfigKeys::OptionTextColor));
+		m_nctx->style.option.border_color = nk_rgb(g_settingsStyleConfig.GetColor(
+			SettingsStyleConfigKeys::OptionBorderColor));
+		m_nctx->style.option.normal = nk_style_item_color(nk_rgb(g_settingsStyleConfig.GetColor(
+			SettingsStyleConfigKeys::OptionColor)));
+		m_nctx->style.option.cursor_normal = nk_style_item_color(nk_rgb(g_settingsStyleConfig.GetColor(
+			SettingsStyleConfigKeys::OptionColorChecked)));
+		m_nctx->style.option.cursor_hover = nk_style_item_color(nk_rgb(g_settingsStyleConfig.GetColor(
+			SettingsStyleConfigKeys::OptionColorCheckedHover)));
+		m_nctx->style.option.hover = nk_style_item_color(nk_rgb(g_settingsStyleConfig.GetColor(
+			SettingsStyleConfigKeys::OptionColorHover)));
+		m_nctx->style.option.border = g_settingsStyleConfig.GetInt(
+			SettingsStyleConfigKeys::OptionBorderWidth);
+
+		// Check styling
+		m_nctx->style.checkbox.text_normal = nk_rgb(g_settingsStyleConfig.GetColor(
+			SettingsStyleConfigKeys::CheckTextColor));
+		m_nctx->style.checkbox.text_active = nk_rgb(g_settingsStyleConfig.GetColor(
+			SettingsStyleConfigKeys::CheckTextColor));
+		m_nctx->style.checkbox.text_hover = nk_rgb(g_settingsStyleConfig.GetColor(
+			SettingsStyleConfigKeys::OptionTextColor));
+		m_nctx->style.checkbox.border_color = nk_rgb(g_settingsStyleConfig.GetColor(
+			SettingsStyleConfigKeys::CheckBorderColor));
+		m_nctx->style.checkbox.normal = nk_style_item_color(nk_rgb(g_settingsStyleConfig.GetColor(
+			SettingsStyleConfigKeys::CheckColor)));
+		m_nctx->style.checkbox.cursor_normal = nk_style_item_color(nk_rgb(g_settingsStyleConfig.GetColor(
+			SettingsStyleConfigKeys::CheckColorChecked)));
+		m_nctx->style.checkbox.cursor_hover = nk_style_item_color(nk_rgb(g_settingsStyleConfig.GetColor(
+			SettingsStyleConfigKeys::CheckColorCheckedHover)));
+		m_nctx->style.checkbox.hover = nk_style_item_color(nk_rgb(g_settingsStyleConfig.GetColor(
+			SettingsStyleConfigKeys::CheckColorHover)));
+		m_nctx->style.checkbox.border = g_settingsStyleConfig.GetInt(
+			SettingsStyleConfigKeys::CheckBorderWidth);
+
+		// Slider styles
+		m_nctx->style.slider.bar_normal = nk_rgb(g_settingsStyleConfig.GetColor(
+			SettingsStyleConfigKeys::SliderBarEmptyColor));
+		m_nctx->style.slider.bar_hover = nk_rgb(g_settingsStyleConfig.GetColor(
+			SettingsStyleConfigKeys::SliderBarEmptyColor));
+		m_nctx->style.slider.bar_filled = nk_rgb(g_settingsStyleConfig.GetColor(
+			SettingsStyleConfigKeys::SliderBarFilledColor));
+		m_nctx->style.slider.cursor_normal = nk_style_item_color(nk_rgb(g_settingsStyleConfig.GetColor(
+			SettingsStyleConfigKeys::SliderBallColor)));
+		m_nctx->style.slider.cursor_hover = nk_style_item_color(nk_rgb(g_settingsStyleConfig.GetColor(
+			SettingsStyleConfigKeys::SliderBallColorHover)));
+
+		// Combo Button styles
+		m_nctx->style.combo.label_normal = nk_rgb(g_settingsStyleConfig.GetColor(
+			SettingsStyleConfigKeys::ComboButtonTextColor));
+		m_nctx->style.combo.button.text_normal = nk_rgb(g_settingsStyleConfig.GetColor(
+			SettingsStyleConfigKeys::ComboButtonArrowColor));
+		m_nctx->style.combo.label_hover = nk_rgb(g_settingsStyleConfig.GetColor(
+			SettingsStyleConfigKeys::ComboButtonTextColorHover));
+		m_nctx->style.combo.normal = nk_style_item_color(nk_rgb(g_settingsStyleConfig.GetColor(
+			SettingsStyleConfigKeys::ComboButtonBackgroundColor)));
+		m_nctx->style.combo.button.normal = nk_style_item_color(nk_rgb(g_settingsStyleConfig.GetColor(
+			SettingsStyleConfigKeys::ComboButtonBackgroundColor)));
+		m_nctx->style.combo.hover = nk_style_item_color(nk_rgb(g_settingsStyleConfig.GetColor(
+			SettingsStyleConfigKeys::ComboButtonBackgroundColorHover)));
+		m_nctx->style.combo.button.hover = nk_style_item_color(nk_rgb(g_settingsStyleConfig.GetColor(
+			SettingsStyleConfigKeys::ComboButtonBackgroundColorHover)));
+
+		// Combo Box Styles
+		m_nctx->style.contextual_button.text_normal = nk_rgb(g_settingsStyleConfig.GetColor(
+			SettingsStyleConfigKeys::ComboBoxTextColor));
+		m_nctx->style.contextual_button.text_hover = nk_rgb(g_settingsStyleConfig.GetColor(
+			SettingsStyleConfigKeys::ComboBoxTextColorHover));
+		m_nctx->style.contextual_button.normal = nk_style_item_color(nk_rgb(g_settingsStyleConfig.GetColor(
+			SettingsStyleConfigKeys::ComboBoxBackgroundColor)));
+		m_nctx->style.contextual_button.hover = nk_style_item_color(nk_rgb(g_settingsStyleConfig.GetColor(
+			SettingsStyleConfigKeys::ComboBoxBackgroundColorHover)));
+
+		// Property Styles
+		m_nctx->style.property.label_normal = nk_rgb(g_settingsStyleConfig.GetColor(
+			SettingsStyleConfigKeys::PropertyTextColor));
+		m_nctx->style.property.label_active = m_nctx->style.property.label_normal;
+		m_nctx->style.property.label_hover = m_nctx->style.property.label_normal;
+
+		m_nctx->style.property.normal = nk_style_item_color(nk_rgb(g_settingsStyleConfig.GetColor(
+			SettingsStyleConfigKeys::PropertyBackgroundColor)));
+		m_nctx->style.property.active = m_nctx->style.property.normal;
+		m_nctx->style.property.hover = m_nctx->style.property.normal;
+
+		m_nctx->style.property.edit.text_normal = nk_rgb(g_settingsStyleConfig.GetColor(
+			SettingsStyleConfigKeys::PropertyEditTextColor));
+		m_nctx->style.property.edit.text_active = m_nctx->style.property.edit.text_normal;
+		m_nctx->style.property.edit.text_hover = m_nctx->style.property.edit.text_hover;
+
+		m_nctx->style.property.edit.selected_text_normal = nk_rgb(g_settingsStyleConfig.GetColor(
+			SettingsStyleConfigKeys::PropertyEditSelectedTextColor));
+		m_nctx->style.property.edit.selected_text_hover = m_nctx->style.property.edit.selected_text_normal;
+		m_nctx->style.property.edit.cursor_text_normal = m_nctx->style.property.edit.selected_text_normal;
+		m_nctx->style.property.edit.cursor_text_hover = m_nctx->style.property.edit.selected_text_normal;
+
+		m_nctx->style.property.edit.selected_normal = nk_rgb(g_settingsStyleConfig.GetColor(
+			SettingsStyleConfigKeys::PropertyEditSelectedBackgroundColor));
+		m_nctx->style.property.edit.selected_hover = m_nctx->style.property.edit.selected_normal;
+		m_nctx->style.property.edit.cursor_normal = m_nctx->style.property.edit.selected_normal;
+		m_nctx->style.property.edit.cursor_hover = m_nctx->style.property.edit.selected_normal;
+
+		m_nctx->style.property.edit.normal = nk_style_item_color(nk_rgb(g_settingsStyleConfig.GetColor(
+			SettingsStyleConfigKeys::PropertyEditBackgroundColor)));
+		m_nctx->style.property.edit.active = m_nctx->style.property.edit.normal;
+		m_nctx->style.property.edit.hover = m_nctx->style.property.edit.normal;
+
+		m_nctx->style.property.inc_button.normal = m_nctx->style.property.normal;
+		m_nctx->style.property.inc_button.text_normal = nk_rgb(g_settingsStyleConfig.GetColor(
+			SettingsStyleConfigKeys::PropertyArrowColor));
+
+		m_nctx->style.property.dec_button.normal = m_nctx->style.property.normal;
+		m_nctx->style.property.dec_button.text_normal = nk_rgb(g_settingsStyleConfig.GetColor(
+			SettingsStyleConfigKeys::PropertyArrowColor));
+
+		// Edit styles
+		m_nctx->style.edit.text_normal = nk_rgb(g_settingsStyleConfig.GetColor(
+			SettingsStyleConfigKeys::EditTextColor));
+		m_nctx->style.edit.text_active = m_nctx->style.property.edit.text_normal;
+		m_nctx->style.edit.text_hover = m_nctx->style.property.edit.text_hover;
+
+		m_nctx->style.edit.selected_text_normal = nk_rgb(g_settingsStyleConfig.GetColor(
+			SettingsStyleConfigKeys::EditSelectedTextColor));
+		m_nctx->style.edit.selected_text_hover = m_nctx->style.property.edit.selected_text_normal;
+		m_nctx->style.edit.cursor_text_normal = m_nctx->style.property.edit.selected_text_normal;
+		m_nctx->style.edit.cursor_text_hover = m_nctx->style.property.edit.selected_text_normal;
+
+		m_nctx->style.edit.selected_normal = nk_rgb(g_settingsStyleConfig.GetColor(
+			SettingsStyleConfigKeys::EditSelectedBackgroundColor));
+		m_nctx->style.edit.selected_hover = m_nctx->style.property.edit.selected_normal;
+		m_nctx->style.edit.cursor_normal = m_nctx->style.property.edit.selected_normal;
+		m_nctx->style.edit.cursor_hover = m_nctx->style.property.edit.selected_normal;
+
+		m_nctx->style.edit.normal = nk_style_item_color(nk_rgb(g_settingsStyleConfig.GetColor(
+			SettingsStyleConfigKeys::EditBackgroundColor)));
+		m_nctx->style.edit.active = m_nctx->style.property.edit.normal;
+		m_nctx->style.edit.hover = m_nctx->style.property.edit.normal;
 	}
+
 
 	void Tick(float deltatime)
 	{
@@ -646,7 +852,11 @@ public:
 
 				if (m_skins.size() > 0)
 				{
-					StringSelectionSetting(GameConfigKeys::Skin, m_skins, "Selected Skin:");
+					String selSkin = StringSelectionSetting(GameConfigKeys::Skin, m_skins, "Selected Skin:");
+					if (selSkin != m_loadedSkin) {
+						g_application->ReloadSkin();
+						m_loadSkinStyle();
+					}
 				}
 
 				nk_label(m_nctx, "Laser colors:", nk_text_alignment::NK_TEXT_LEFT);
@@ -710,6 +920,8 @@ public:
 			else
 			{
 				m_skinBeforeSkinSettings = "";
+				g_application->ReloadSkin();
+				m_loadSkinStyle();
 			}
 			if (nk_button_label(m_nctx, "Exit")) Exit();
 			nk_end(m_nctx);

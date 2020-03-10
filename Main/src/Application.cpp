@@ -38,6 +38,7 @@
 #include "archive_entry.h"
 
 GameConfig g_gameConfig;
+SettingsStyleConfig g_settingsStyleConfig;
 SkinConfig* g_skinConfig;
 OpenGL* g_gl = nullptr;
 Graphics::Window* g_gameWindow = nullptr;
@@ -415,6 +416,23 @@ void Application::m_unpackSkins()
 	}
 }
 
+bool Application::m_LoadSettingsStyleConfig(String skin)
+{
+	File configFile;
+
+	// Reset to defaults incase skin can't load;
+	g_settingsStyleConfig.Clear();
+	g_settingsStyleConfig.InitDefaults();
+
+	if (configFile.OpenRead(Path::Absolute("skins/" + skin + "/style.cfg")))
+	{
+		FileReader reader(configFile);
+		if (g_settingsStyleConfig.Load(reader))
+			return true;
+	}
+	return false;
+}
+
 bool Application::m_LoadConfig()
 {
 	File configFile;
@@ -679,6 +697,9 @@ bool Application::m_Init()
 	}
 
 	g_skinConfig = new SkinConfig(m_skin);
+
+	m_LoadSettingsStyleConfig(m_skin);
+
 	// Window cursor
 	Image cursorImg = ImageRes::Create(Path::Absolute("skins/" + m_skin + "/textures/cursor.png"));
 	g_gameWindow->SetCursor(cursorImg, Vector2i(5, 5));
@@ -1284,6 +1305,9 @@ void Application::ReloadSkin()
 		delete g_skinConfig;
 	}
 	g_skinConfig = new SkinConfig(m_skin);
+
+	m_LoadSettingsStyleConfig(m_skin);
+
 	g_guiState.fontCahce.clear();
 	g_guiState.textCache.clear();
 	g_guiState.nextTextId.clear();

@@ -103,6 +103,7 @@ public:
 
 private:
 	bool m_LoadConfig();
+	bool m_LoadSettingsStyleConfig(String skin);
 	void m_SaveConfig();
 	void m_InitDiscord();
 	bool m_Init();

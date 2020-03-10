@@ -75,6 +75,10 @@ public:
 	{
 		return GetEnsure<BoolConfigEntry>(key)->data;
 	}
+	const Color& GetColor(KeyType key) const
+	{
+		return GetEnsure<ColorConfigEntry>(key)->data;
+	}
 	template<typename EnumClass1>
 	typename EnumClass1::EnumType GetEnum(KeyType key) const
 	{
@@ -121,6 +125,25 @@ public:
 	{
 		String& dst = SetEnsure<StringConfigEntry>(key)->data;
 		if(dst != value)
+		{
+			dst = value;
+			m_dirty = true;
+		}
+	}
+	void Set(KeyType key, const Color& value)
+	{
+		Color& dst = SetEnsure<ColorConfigEntry>(key)->data;
+		if (dst != value)
+		{
+			dst = value;
+			m_dirty = true;
+		}
+	}
+	void Set(KeyType key, const Colori& valuei)
+	{
+		const Color value = Color(valuei);
+		Color& dst = SetEnsure<ColorConfigEntry>(key)->data;
+		if (dst != value)
 		{
 			dst = value;
 			m_dirty = true;
