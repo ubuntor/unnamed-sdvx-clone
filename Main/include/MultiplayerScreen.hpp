@@ -38,7 +38,7 @@ struct MultiplayerBPMInfo {
 class MultiplayerScreen : public IAsyncLoadableApplicationTickable
 {
 public:
-	MultiplayerScreen();
+	MultiplayerScreen(String databaseFile) : m_mapDatabase(databaseFile) {};
 	~MultiplayerScreen();
 
 	bool Init() override;

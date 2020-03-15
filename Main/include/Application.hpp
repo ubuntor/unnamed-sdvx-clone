@@ -49,6 +49,11 @@ public:
 	// Current loaded skin;
 	String GetCurrentSkin();
 
+	// Get the current db file based on the config
+	String GetCurrentDatabaseFile();
+
+	bool CloneMapsToNewDatabase(String name);
+
 	// Retrieves application command line parameters
 	const Vector<String>& GetAppCommandLine() const;
 

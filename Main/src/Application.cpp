@@ -1092,6 +1092,62 @@ String Application::GetCurrentSkin()
 	return m_skin;
 }
 
+String Application::GetCurrentDatabaseFile()
+{
+	String databaseFile = g_gameConfig.GetString(GameConfigKeys::ScoreDatabaseProfile);
+	if (databaseFile == "Main") {
+		return "maps.db";
+	}
+	String path = Path::Absolute("profiles/" + databaseFile + "/maps.db");
+	if (!Path::FileExists(path))
+	{
+		// This profile doesn't exist anymore, update the key
+		g_gameConfig.Set(GameConfigKeys::ScoreDatabaseProfile, "Main");
+		return "maps.db";
+	}
+	return path;
+}
+
+bool Application::CloneMapsToNewDatabase(String name)
+{
+
+	if (!Path::IsDirectory(Path::Absolute("profiles")))
+	{
+		if (!Path::CreateDir(Path::Absolute("profiles")))
+			return false;
+	}
+
+	if (name.length() == 0 || name == "Main" ||
+		name.find('/') != String::npos ||
+		name.find('\\') != String::npos ||
+		name.find('\'') != String::npos ||
+		name.find('\"') != String::npos ||
+		name.find('\0') != String::npos ||
+		name.find('.') != String::npos
+		)
+	{
+		Logf("Invalid profile name: '%s'", Logger::Warning, *name);
+		return false;
+	}
+	if (Path::IsDirectory(Path::Absolute("profiles/" + name)))
+		return false;
+	
+	if (!Path::CreateDir(Path::Absolute("profiles/" + name)))
+		return false;
+
+	String newDatabaseFile = Path::Absolute("profiles/" + name + "/maps.db");
+	String currentDatabaseFile = GetCurrentDatabaseFile();
+
+	Logf("Cloning %s to %s", Logger::Info, *currentDatabaseFile, *newDatabaseFile);
+
+	Path::Copy(currentDatabaseFile, newDatabaseFile);
+	MapDatabase md(newDatabaseFile);
+
+	if (!md.RemoveScores())
+			return false;
+	g_gameConfig.Set(GameConfigKeys::ScoreDatabaseProfile, name);
+}
+
 const Vector<String>& Application::GetAppCommandLine() const
 {
 	return m_commandLine;
@@ -1408,7 +1464,7 @@ void Application::DiscordPresenceSong(const BeatmapSettings& song, int64 startTi
 
 void Application::JoinMultiFromInvite(String secret)
 {
-	MultiplayerScreen* mpScreen = new MultiplayerScreen();
+	MultiplayerScreen* mpScreen = new MultiplayerScreen(g_application->GetCurrentDatabaseFile());
 	IApplicationTickable* title = (IApplicationTickable*)TitleScreen::Create();
 	String* token = new String(*secret);
 	auto tokenInput = [=](void* screen)

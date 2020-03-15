@@ -1135,6 +1135,7 @@ private:
 	bool m_hasCollDiag = false;
 
 public:
+	SongSelect_Impl(String databaseFile) : m_mapDatabase(databaseFile){}
 
 	bool Init() override
 	{
@@ -1720,13 +1721,13 @@ public:
 
 SongSelect* SongSelect::Create(MultiplayerScreen* multiplayer)
 {
-	SongSelect_Impl* impl = new SongSelect_Impl();
+	SongSelect_Impl* impl = new SongSelect_Impl(g_application->GetCurrentDatabaseFile());
 	impl->MakeMultiplayer(multiplayer);
 	return impl;
 }
 
 SongSelect* SongSelect::Create()
 {
-	SongSelect_Impl* impl = new SongSelect_Impl();
+	SongSelect_Impl* impl = new SongSelect_Impl(g_application->GetCurrentDatabaseFile());
 	return impl;
 }

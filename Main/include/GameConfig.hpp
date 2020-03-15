@@ -123,7 +123,9 @@ DefineEnum(GameConfigKeys,
 	MultiplayerUsername,
 
 	RollIgnoreDuration,
-	LaserSlamLength
+	LaserSlamLength,
+
+	ScoreDatabaseProfile
 	);
 
 DefineEnum(SpeedMods,

@@ -214,7 +214,8 @@ public:
 	}
 
 	ScoreScreen_Impl(class Game* game, bool multiplayer,
-		String uid, Vector<nlohmann::json> const* multistats)
+		String uid, Vector<nlohmann::json> const* multistats, String databaseFile)
+		: m_mapDatabase(databaseFile)
 	{
 		m_displayIndex = 0;
 
@@ -591,12 +592,14 @@ public:
 
 ScoreScreen* ScoreScreen::Create(class Game* game)
 {
-	ScoreScreen_Impl* impl = new ScoreScreen_Impl(game, false, String(""), nullptr);
+	ScoreScreen_Impl* impl = new ScoreScreen_Impl(game, false, String(""), nullptr,
+		g_application->GetCurrentDatabaseFile());
 	return impl;
 }
 
 ScoreScreen* ScoreScreen::Create(class Game* game, String uid, Vector<nlohmann::json> const* stats)
 {
-	ScoreScreen_Impl* impl = new ScoreScreen_Impl(game, true, uid, stats);
+	ScoreScreen_Impl* impl = new ScoreScreen_Impl(game, true, uid, stats,
+		g_application->GetCurrentDatabaseFile());
 	return impl;
 }

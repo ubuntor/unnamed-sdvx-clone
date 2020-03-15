@@ -55,7 +55,7 @@ private:
 
 	int lMultiplayer(lua_State* L)
 	{
-		g_transition->TransitionTo(new MultiplayerScreen());
+		g_transition->TransitionTo(new MultiplayerScreen(g_application->GetCurrentDatabaseFile()));
 		return 0;
 	}
 

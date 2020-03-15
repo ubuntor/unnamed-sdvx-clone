@@ -69,9 +69,9 @@ public:
 	static const int32 m_version = 12;
 
 public:
-	MapDatabase_Impl(MapDatabase& outer) : m_outer(outer)
+	MapDatabase_Impl(MapDatabase& outer, String databaseFile) : m_outer(outer)
 	{
-		String databasePath = Path::Absolute("maps.db");
+		String databasePath = Path::Absolute(databaseFile);
 		if(!m_database.Open(databasePath))
 		{
 			Logf("Failed to open database [%s]", Logger::Warning, databasePath);
@@ -603,6 +603,14 @@ public:
 		return it->second;
 	}
 
+	bool RemoveScores()
+	{
+		m_database.Exec("DELETE from Scores");
+		// TODO we can't VACUUM while using rowids but ideal we would want to
+		// m_database.Exec("VACUUM");
+		return true;
+	}
+
 private:
 	void m_CleanupMapIndex()
 	{
@@ -623,24 +631,25 @@ private:
 		m_maps.clear();
 		m_difficulties.clear();
 	}
-	void m_CreateTables()
+	void m_CreateTables(String database="")
 	{
-		m_database.Exec("DROP TABLE IF EXISTS Maps");
-		m_database.Exec("DROP TABLE IF EXISTS Difficulties");
-		m_database.Exec("DROP TABLE IF EXISTS Scores");
 
-		m_database.Exec("CREATE TABLE Maps"
+		m_database.Exec("DROP TABLE IF EXISTS " + database + "Maps");
+		m_database.Exec("DROP TABLE IF EXISTS " + database + "Difficulties");
+		m_database.Exec("DROP TABLE IF EXISTS " + database + "Scores");
+
+		m_database.Exec("CREATE TABLE " + database + "Maps"
 			"(artist TEXT, title TEXT, tags TEXT, path TEXT)");
 
-		m_database.Exec("CREATE TABLE Difficulties"
+		m_database.Exec("CREATE TABLE " + database + "Difficulties"
 			"(metadata BLOB, path TEXT, lwt INTEGER, mapid INTEGER, hash TEXT, "
 			"FOREIGN KEY(mapid) REFERENCES Maps(rowid))");
 
-		m_database.Exec("CREATE TABLE Scores"
+		m_database.Exec("CREATE TABLE " + database + "Scores"
 			"(score INTEGER, crit INTEGER, near INTEGER, miss INTEGER, gauge REAL, gameflags INTEGER, diffid INTEGER, hitstats BLOB, timestamp INTEGER, "
 			"FOREIGN KEY(diffid) REFERENCES Difficulties(rowid))");
 
-		m_database.Exec("CREATE TABLE Collections"
+		m_database.Exec("CREATE TABLE " + database + "Collections"
 			"(collection TEXT, mapid INTEGER, "
 			"UNIQUE(collection,mapid), "
 			"FOREIGN KEY(mapid) REFERENCES Maps(rowid))");
@@ -911,9 +920,9 @@ private:
 		m_searching = false;
 	}
 };
-MapDatabase::MapDatabase()
+MapDatabase::MapDatabase(String databaseFile)
 {
-	m_impl = new MapDatabase_Impl(*this);
+	m_impl = new MapDatabase_Impl(*this, databaseFile);
 }
 MapDatabase::~MapDatabase()
 {
@@ -983,4 +992,8 @@ void MapDatabase::AddScore(const DifficultyIndex& diff, int score, int crit, int
 DifficultyIndex* MapDatabase::GetRandomDiff()
 {
 	return m_impl->GetRandomDiff();
+}
+bool MapDatabase::RemoveScores()
+{
+	return m_impl->RemoveScores();
 }

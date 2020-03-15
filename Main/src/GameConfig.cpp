@@ -55,6 +55,7 @@ void GameConfig::InitDefaults()
 	Set(GameConfigKeys::ShowCover, true);
 	Set(GameConfigKeys::DistantButtonScale, 1.0f);
 	Set(GameConfigKeys::BTOverFXScale, 0.8f);
+	Set(GameConfigKeys::ScoreDatabaseProfile, "Main");
 
 
 	SetEnum<Enum_SpeedMods>(GameConfigKeys::SpeedMod, SpeedMods::MMod);

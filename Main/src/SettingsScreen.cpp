@@ -115,6 +115,7 @@ private:
 	Vector<const char*> m_aaModes = { "Off", "2x MSAA", "4x MSAA", "8x MSAA", "16x MSAA" };
 	Vector<String> m_gamePads;
 	Vector<String> m_skins;
+	Vector<String> m_profiles;
 
 	Vector<GameConfigKeys> m_keyboardKeys = {
 		GameConfigKeys::Key_BTS,
@@ -178,6 +179,8 @@ private:
 	int m_multiplayerPasswordLen = 0;
 	char m_multiplayerUsername[1024];
 	int m_multiplayerUsernameLen = 0;
+	char m_scoreProfileText[1024];
+	int m_scoreProfileTextLen = 0;
 	Vector<GameConfigKeys>* m_activeBTKeys = &m_keyboardKeys;
 	bool m_useBTGamepad = false;
 	bool m_useLaserGamepad = false;
@@ -371,6 +374,10 @@ public:
 	{
 		m_gamePads = g_gameWindow->GetGamepadDeviceNames();	
 		m_skins = Path::GetSubDirs(Path::Normalize(Path::Absolute("skins/")));
+
+		m_profiles = Path::GetSubDirs(Path::Normalize(Path::Absolute("profiles/")));
+		m_profiles.insert(m_profiles.begin(), "Main");
+
 		m_nctx = nk_sdl_init((SDL_Window*)g_gameWindow->Handle());
 		g_gameWindow->OnAnyEvent.Add(this, &SettingsScreen_Impl::UpdateNuklearInput);
 		{
@@ -646,7 +653,25 @@ public:
 
 				if (m_skins.size() > 0)
 				{
-					StringSelectionSetting(GameConfigKeys::Skin, m_skins, "Selected Skin:");
+					String _  = StringSelectionSetting(GameConfigKeys::Skin, m_skins, "Selected Skin:");
+				}
+
+				String profileBefore = g_gameConfig.GetString(GameConfigKeys::ScoreDatabaseProfile);
+				String profileAfter = StringSelectionSetting(GameConfigKeys::ScoreDatabaseProfile, m_profiles, "Selected Score Profile:");
+				if (profileBefore != profileAfter)
+				{
+					// TODO reload config
+				}
+
+				nk_label(m_nctx, "New Score Profile:", nk_text_alignment::NK_TEXT_LEFT);
+				nk_sdl_text(nk_edit_string(m_nctx, NK_EDIT_FIELD, m_scoreProfileText, &m_scoreProfileTextLen, 1024, nk_filter_default));
+				if (nk_button_label(m_nctx, "New Score Profile"))
+				{
+					g_application->CloneMapsToNewDatabase(String(m_scoreProfileText));
+					m_profiles = Path::GetSubDirs(Path::Normalize(Path::Absolute("profiles/")));
+					m_profiles.insert(m_profiles.begin(), "Main");
+					m_scoreProfileTextLen = 0;
+					memset(m_scoreProfileText, 0, sizeof(m_scoreProfileText));
 				}
 
 				nk_label(m_nctx, "Laser colors:", nk_text_alignment::NK_TEXT_LEFT);

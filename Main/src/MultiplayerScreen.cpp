@@ -114,10 +114,6 @@ public:
 	}
 };
 
-MultiplayerScreen::MultiplayerScreen()
-{
-}
-
 MultiplayerScreen::~MultiplayerScreen()
 {
 	g_input.OnButtonPressed.RemoveAll(this);

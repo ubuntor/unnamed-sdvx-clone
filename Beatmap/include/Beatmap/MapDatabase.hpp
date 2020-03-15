@@ -67,7 +67,7 @@ struct MapIndex
 class MapDatabase : public Unique
 {
 public:
-	MapDatabase();
+	MapDatabase(String databaseFile);
 	~MapDatabase();
 
 	// Checks the background scanning and actualized the current map database
@@ -98,6 +98,7 @@ public:
 	void AddScore(const DifficultyIndex& diff, int score, int crit, int almost, int miss, float gauge, uint32 gameflags, Vector<SimpleHitStat> simpleHitStats, uint64 timestamp);
 	void RemoveSearchPath(const String& path);
 
+	bool RemoveScores();
 
 	Delegate<String> OnSearchStatusUpdated;
 	// (mapId, mapIndex)
