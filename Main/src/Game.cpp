@@ -351,7 +351,8 @@ public:
 			songOffset = m_chartIndex->custom_offset;
 		}
 
-		m_audioOffset = g_gameConfig.GetInt(GameConfigKeys::GlobalOffset) + songOffset;
+		m_audioOffset = songOffset + g_gameConfig.GetInt(GameConfigKeys::AudioOffset);
+		m_playback.visualOffset = g_gameConfig.GetInt(GameConfigKeys::VisualOffset);
 		m_playback.audioOffset = m_audioOffset;
 
 		m_saveSpeed = g_gameConfig.GetBool(GameConfigKeys::AutoSaveSpeed);

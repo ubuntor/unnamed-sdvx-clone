@@ -31,6 +31,7 @@ bool BeatmapPlayback::Reset(MapTime startTime)
 
 	Logf("Resetting BeatmapPlayback with StartTime = %d", Logger::Info, startTime);
 	m_playbackTime = startTime;
+	m_offsetPlaybackTime = m_playbackTime + visualOffset;
 	m_currentObj = &m_objects.front();
 	m_currentAlertObj = &m_objects.front();
 	m_currentLaserObj = &m_objects.front();
@@ -70,6 +71,7 @@ void BeatmapPlayback::Update(MapTime newTime)
 
 		// Set new time
 		m_playbackTime = newTime;
+		m_offsetPlaybackTime = m_playbackTime + visualOffset;
 		return;
 	}
 	if (newTime < m_playbackTime)
@@ -99,6 +101,7 @@ void BeatmapPlayback::Update(MapTime newTime)
 
 	// Set new time
 	m_playbackTime = newTime;
+	m_offsetPlaybackTime = m_playbackTime + visualOffset;
 
 	// Advance timing
 	TimingPoint** timingEnd = m_SelectTimingPoint(m_playbackTime);
@@ -333,8 +336,8 @@ Vector<ObjectState*> BeatmapPlayback::GetObjectsInRange(MapTime range)
 {
 	static const uint32 earlyVisiblity = 200;
 	const TimingPoint& tp = GetCurrentTimingPoint();
-	MapTime end = m_playbackTime + range;
-	MapTime begin = m_playbackTime - earlyVisiblity;
+	MapTime end = m_offsetPlaybackTime + range;
+	MapTime begin = m_offsetPlaybackTime - earlyVisiblity;
 	Vector<ObjectState*> ret;
 
 	if (m_isCalibration) {
@@ -394,11 +397,11 @@ uint32 BeatmapPlayback::CountBeats(MapTime start, MapTime range, int32& startInd
 }
 MapTime BeatmapPlayback::ViewDistanceToDuration(float distance)
 {
-	TimingPoint** tp = m_SelectTimingPoint(m_playbackTime, true);
+	TimingPoint** tp = m_SelectTimingPoint(m_offsetPlaybackTime, true);
 
 	double time = 0;
 
-	MapTime currentTime = m_playbackTime;
+	MapTime currentTime = m_offsetPlaybackTime;
 	while (true)
 	{
 		if (!IsEndTiming(tp + 1))
@@ -482,6 +485,7 @@ float BeatmapPlayback::DurationToViewDistanceAtTimeNoStops(MapTime time, MapTime
 
 float BeatmapPlayback::DurationToViewDistanceAtTime(MapTime time, MapTime duration)
 {
+	time += visualOffset;
 	if (cMod)
 	{
 		return (float)duration / 480000.0f;
@@ -543,8 +547,9 @@ float BeatmapPlayback::TimeToViewDistance(MapTime time)
 {
 	if (cMod)
 		return (float)(time - m_playbackTime) / (480000.f);
+	
 
-	return DurationToViewDistanceAtTime(m_playbackTime, time - m_playbackTime);
+	return DurationToViewDistanceAtTime(m_playbackTime, time - m_offsetPlaybackTime);
 }
 
 float BeatmapPlayback::GetBarTime() const

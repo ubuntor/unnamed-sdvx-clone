@@ -22,7 +22,8 @@ bool CalibrationScreen::AsyncLoad()
 {
 	m_metronome = SampleRes::Create(g_audio, Path::Normalize(Path::Absolute("audio/metronome120.wav")));
 	m_playback.MakeCalibrationPlayback();
-	m_audioOffset = g_gameConfig.GetInt(GameConfigKeys::GlobalOffset);
+	m_audioOffset = g_gameConfig.GetInt(GameConfigKeys::AudioOffset);
+	m_visualOffset = g_gameConfig.GetInt(GameConfigKeys::VisualOffset);
 	m_inputOffset = g_gameConfig.GetInt(GameConfigKeys::InputOffset);
 	m_trackCover = g_gameConfig.GetBool(GameConfigKeys::ShowCover);
 	m_fpsTarget = g_gameConfig.GetInt(GameConfigKeys::FPSTarget);
@@ -98,9 +99,30 @@ void CalibrationScreen::Render(float deltaTime)
 
 		if (nk_begin(m_ctx, "Options", nk_rect(50, 50, OPTIONS_WINDOW_WIDTH, OPTIONS_WINDOW_HEIGHT), windowFlag))
 		{
+			nk_layout_row_dynamic(m_ctx, 30, 2);
+			if (nk_button_label(m_ctx, "Cancel")) {
+				g_application->RemoveTickable(this);
+			}
+			if (nk_button_label(m_ctx, "Ok")) {
+				//Save settings
+				g_gameConfig.Set(GameConfigKeys::HiSpeed, m_hispeed);
+				g_gameConfig.Set(GameConfigKeys::ModSpeed, m_hispeed * 120.0f);
+				g_gameConfig.Set(GameConfigKeys::HiddenCutoff, m_track.hiddenCutoff);
+				g_gameConfig.Set(GameConfigKeys::HiddenFade, m_track.hiddenFadewindow);
+				g_gameConfig.Set(GameConfigKeys::SuddenCutoff, m_track.suddenCutoff);
+				g_gameConfig.Set(GameConfigKeys::SuddenFade, m_track.suddenFadewindow);
+				g_gameConfig.Set(GameConfigKeys::InputOffset, m_inputOffset);
+				g_gameConfig.Set(GameConfigKeys::AudioOffset, m_audioOffset);
+				g_gameConfig.Set(GameConfigKeys::VisualOffset, m_visualOffset);
+				g_gameConfig.Set(GameConfigKeys::ShowCover, m_trackCover);
+				g_gameConfig.Set(GameConfigKeys::DistantButtonScale, m_track.distantButtonScale);
+				g_application->RemoveTickable(this);
+			}
+
 			nk_layout_row_dynamic(m_ctx, 30, 1);
-			m_audioOffset = nk_propertyi(m_ctx, "Global Offset", -1000, m_audioOffset, 1000, 1, 1);
+			m_visualOffset = nk_propertyi(m_ctx, "Visual Offset", -1000, m_visualOffset, 1000, 1, 1);
 			m_inputOffset = nk_propertyi(m_ctx, "Input Offset", -1000, m_inputOffset, 1000, 1, 1);
+			m_audioOffset = nk_propertyi(m_ctx, "Audio Offset", -1000, m_audioOffset, 1000, 1, 1);
 
 			int boolValue = m_autoCalibrate ? 0 : 1;
 			nk_checkbox_label(m_ctx, "Auto Calibrate Input offset", &boolValue);
@@ -134,25 +156,6 @@ void CalibrationScreen::Render(float deltaTime)
 			nk_checkbox_label(m_ctx, "Show Track Cover", &boolValue);
 			m_trackCover = boolValue == 0;
 
-
-			nk_layout_row_dynamic(m_ctx, 30, 2);
-			if (nk_button_label(m_ctx, "Cancel")) {
-				g_application->RemoveTickable(this);
-			}
-			if (nk_button_label(m_ctx, "Ok")) {
-				//Save settings
-				g_gameConfig.Set(GameConfigKeys::HiSpeed, m_hispeed);
-				g_gameConfig.Set(GameConfigKeys::ModSpeed, m_hispeed * 120.0f);
-				g_gameConfig.Set(GameConfigKeys::HiddenCutoff, m_track.hiddenCutoff);
-				g_gameConfig.Set(GameConfigKeys::HiddenFade, m_track.hiddenFadewindow);
-				g_gameConfig.Set(GameConfigKeys::SuddenCutoff, m_track.suddenCutoff);
-				g_gameConfig.Set(GameConfigKeys::SuddenFade, m_track.suddenFadewindow);
-				g_gameConfig.Set(GameConfigKeys::InputOffset, m_inputOffset);
-				g_gameConfig.Set(GameConfigKeys::GlobalOffset, m_audioOffset);
-				g_gameConfig.Set(GameConfigKeys::ShowCover, m_trackCover);
-				g_gameConfig.Set(GameConfigKeys::DistantButtonScale, m_track.distantButtonScale);
-				g_application->RemoveTickable(this);
-			}
 		}
 		nk_end(m_ctx);
 
@@ -221,6 +224,7 @@ void CalibrationScreen::Tick(float deltaTime)
 {
 	m_lastTime = 2000 + (m_timer.Milliseconds() % 2000);
 	m_lastTime -= m_audioOffset;
+	m_playback.visualOffset = m_visualOffset;
 
 
 	m_playback.Update(m_lastTime);

@@ -126,8 +126,9 @@ bool GameplaySettingsDialog::Init()
     m_tabs.clear();
     Tab offsetTab = std::make_unique<TabData>();
     offsetTab->name = "Offsets";
-    offsetTab->settings.push_back(m_CreateIntSetting(GameConfigKeys::GlobalOffset, "Global Offset", {-200, 200}));
+    offsetTab->settings.push_back(m_CreateIntSetting(GameConfigKeys::VisualOffset, "Visual Offset", {-200, 200}));
     offsetTab->settings.push_back(m_CreateIntSetting(GameConfigKeys::InputOffset, "Input Offset", {-200, 200}));
+    offsetTab->settings.push_back(m_CreateIntSetting(GameConfigKeys::AudioOffset, "Audio Offset", {-200, 200}));
 
     Tab speedTab = std::make_unique<TabData>();
     speedTab->name = "HiSpeed";

@@ -678,8 +678,9 @@ public:
 				SelectionSetting(GameConfigKeys::Controller_DeviceID, pads, "Selected Controller:");
 			}
 
-			IntSetting(GameConfigKeys::GlobalOffset, "Global Offset", -1000, 1000);
+			IntSetting(GameConfigKeys::VisualOffset, "Visual Offset", -1000, 1000);
 			IntSetting(GameConfigKeys::InputOffset, "Input Offset", -1000, 1000);
+			IntSetting(GameConfigKeys::AudioOffset, "Audio Offset (not recommended)", -1000, 1000);
 			
 			if (nk_button_label(m_nctx, "Calibrate offsets")) {
 				CalibrationScreen* cscreen = new CalibrationScreen(m_nctx);

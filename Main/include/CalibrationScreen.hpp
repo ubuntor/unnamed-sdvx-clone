@@ -26,6 +26,7 @@ private:
 	BeatmapPlayback m_playback;
 	float m_hispeed = 2.0;
 	int m_audioOffset = 0;
+	int m_visualOffset = 0;
 	int m_inputOffset = 0;
 	MapTime m_lastTime = 0;
 	bool m_trackCover = false;

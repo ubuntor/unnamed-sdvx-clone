@@ -28,6 +28,7 @@ public:
 	MapTime hittableObjectLeave = 500;
 	MapTime alertLaserThreshold = 1500;
 	MapTime audioOffset = 0;
+	MapTime visualOffset = 0;
 	bool cMod = false;
 	float cModSpeed = 400;
 
@@ -119,6 +120,7 @@ private:
 
 	// Current map position of this playback object
 	MapTime m_playbackTime;
+	MapTime m_offsetPlaybackTime;
 	Vector<TimingPoint*> m_timingPoints;
 	Vector<ChartStop*> m_chartStops;
 	Vector<ObjectState*> m_objects;

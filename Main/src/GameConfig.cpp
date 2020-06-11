@@ -66,7 +66,8 @@ void GameConfig::InitDefaults()
 	Set(GameConfigKeys::ForcePortrait, false);
 	Set(GameConfigKeys::SkipScore, true);
 	Set(GameConfigKeys::HiSpeed, 1.0f);
-	Set(GameConfigKeys::GlobalOffset, 0);
+	Set(GameConfigKeys::AudioOffset, 0);
+	Set(GameConfigKeys::VisualOffset, 0);
 	Set(GameConfigKeys::InputOffset, 0);
 	Set(GameConfigKeys::FPSTarget, 0);
 	Set(GameConfigKeys::LaserAssistLevel, 1.05f);
