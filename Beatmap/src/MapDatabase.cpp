@@ -1126,10 +1126,16 @@ private:
 			m_outer.OnSearchStatusUpdated.Call("[START] Chart Database - Enumerate Files and Folders");
 			for(String rootSearchPath : m_searchPaths)
 			{
-				Vector<FileInfo> files = Files::ScanFilesRecursive(rootSearchPath, "ksh", &m_interruptSearch);
+				//TODO: Do both formats in one search
+				Vector<FileInfo> kshfiles = Files::ScanFilesRecursive(rootSearchPath, "ksh", &m_interruptSearch);
+				Vector<FileInfo> ksonfiles = Files::ScanFilesRecursive(rootSearchPath, "kson", &m_interruptSearch);
 				if(m_interruptSearch)
 					return;
-				for(FileInfo& fi : files)
+				for(FileInfo& fi : kshfiles)
+				{
+					fileList.Add(fi.fullPath, fi);
+				}
+				for(FileInfo& fi : ksonfiles)
 				{
 					fileList.Add(fi.fullPath, fi);
 				}
@@ -1204,8 +1210,10 @@ private:
 				if(fileStream.OpenRead(f.first))
 				{
 					FileReader reader(fileStream);
+					String extension = Path::GetExtension(f.first);
+					extension.ToLower();
 
-					if(map.Load(reader, true))
+					if(map.Load(reader, extension == "ksh" ? Beatmap::Format::KSH : Beatmap::Format::KSON, true))
 					{
 						mapValid = true;
 					}

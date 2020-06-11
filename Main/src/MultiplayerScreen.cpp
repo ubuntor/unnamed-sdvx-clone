@@ -610,7 +610,10 @@ void  MultiplayerScreen::GetMapBPMForSpeed(String path, struct MultiplayerBPMInf
 		return;
 	}
 	FileReader reader(mapFile);
-	if (!newMap->Load(reader))
+	String extension = Path::GetExtension(path);
+	extension.ToLower();
+	Beatmap::Format chartFormat = extension == "ksh" ? Beatmap::Format::KSH : Beatmap::Format::KSON;
+	if (!newMap->Load(reader, chartFormat))
 	{
 		delete newMap;
 		info = { 0 };

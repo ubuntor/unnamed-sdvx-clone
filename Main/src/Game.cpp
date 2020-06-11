@@ -42,7 +42,10 @@ Ref<Beatmap> TryLoadMap(const String& path)
 		return Ref<Beatmap>();
 	}
 	FileReader reader(mapFile);
-	if(!newMap->Load(reader))
+	String extension = Path::GetExtension(path);
+	extension.ToLower();
+	Beatmap::Format chartFormat = extension == "ksh" ? Beatmap::Format::KSH : Beatmap::Format::KSON;
+	if(!newMap->Load(reader, chartFormat))
 	{
 		delete newMap;
 		return Ref<Beatmap>();

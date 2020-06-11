@@ -42,19 +42,13 @@ Beatmap& Beatmap::operator=(Beatmap&& other)
 	m_settings = std::move(other.m_settings);
 	return *this;
 }
-bool Beatmap::Load(BinaryStream& input, bool metadataOnly)
+bool Beatmap::Load(BinaryStream& input, Format format, bool metadataOnly)
 {
 	ProfilerScope $("Load Beatmap");
 
-	if(!m_ProcessKShootMap(input, metadataOnly)) // Load KSH format first
-	{
-		// Load binary map format
-		input.Seek(0);
-		if(!m_Serialize(input, metadataOnly))
-			return false;
-	}
-
-	return true;
+	if (format == Format::KSH)
+		return m_ProcessKShootMap(input, metadataOnly);
+	return m_ProcessKSON(input, metadataOnly);
 }
 bool Beatmap::Save(BinaryStream& output) const
 {

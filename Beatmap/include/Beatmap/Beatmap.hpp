@@ -53,12 +53,18 @@ struct BeatmapSettings
 class Beatmap : public Unique
 {
 public:
+	enum class Format
+	{
+		KSH,
+		KSON
+	};
+
 	virtual ~Beatmap();
 	Beatmap() = default;
 	Beatmap(Beatmap&& other);
 	Beatmap& operator=(Beatmap&& other);
 
-	bool Load(BinaryStream& input, bool metadataOnly = false);
+	bool Load(BinaryStream& input, Format format, bool metadataOnly = false);
 	// Saves the map as it's own format
 	bool Save(BinaryStream& output) const;
 
@@ -95,6 +101,7 @@ public:
 
 private:
 	bool m_ProcessKShootMap(BinaryStream& input, bool metadataOnly);
+	bool m_ProcessKSON(BinaryStream& input, bool metadataOnly);
 	bool m_Serialize(BinaryStream& stream, bool metadataOnly);
 
 	Map<EffectType, AudioEffect> m_customEffects;
