@@ -6,8 +6,9 @@
 #include "Shared/StringEncodingDetector.hpp"
 #include "Shared/StringEncodingConverter.hpp"
 #include <limits>
+#include <climits>
 
-bool checkedGet(const nlohmann::json obj, char* field, String& target)
+bool checkedGet(const nlohmann::json& obj, const char* field, String& target)
 {
 	if (obj.contains(field) && obj.at(field).is_string())
 	{
@@ -17,7 +18,7 @@ bool checkedGet(const nlohmann::json obj, char* field, String& target)
 	return false;
 }
 
-bool checkedGet(const nlohmann::json obj, char* field, int& target)
+bool checkedGet(const nlohmann::json& obj, const char* field, int& target)
 {
 	if (obj.contains(field) && obj.at(field).is_number_integer())
 	{
@@ -27,7 +28,7 @@ bool checkedGet(const nlohmann::json obj, char* field, int& target)
 	return false;
 }
 
-bool checkedGet(const nlohmann::json obj, char* field, uint8& target)
+bool checkedGet(const nlohmann::json& obj, const char* field, uint8& target)
 {
 	if (obj.contains(field) && obj.at(field).is_number_unsigned())
 	{
@@ -37,7 +38,7 @@ bool checkedGet(const nlohmann::json obj, char* field, uint8& target)
 	return false;
 }
 
-bool checkedGet(const nlohmann::json obj, char* field, uint32& target)
+bool checkedGet(const nlohmann::json& obj, const char* field, uint32& target)
 {
 	if (obj.contains(field) && obj.at(field).is_number_unsigned())
 	{
@@ -46,7 +47,7 @@ bool checkedGet(const nlohmann::json obj, char* field, uint32& target)
 	}
 	return false;
 }
-bool checkedGet(const nlohmann::json obj, char* field, float& target)
+bool checkedGet(const nlohmann::json& obj, const char* field, float& target)
 {
 	if (obj.contains(field) && obj.at(field).is_number_float())
 	{
@@ -55,7 +56,7 @@ bool checkedGet(const nlohmann::json obj, char* field, float& target)
 	}
 	return false;
 }
-bool checkedGet(const nlohmann::json obj, char* field, double& target)
+bool checkedGet(const nlohmann::json& obj, const char* field, double& target)
 {
 	if (obj.contains(field) && obj.at(field).is_number_float())
 	{
@@ -140,7 +141,7 @@ bool Beatmap::m_ProcessKSON(BinaryStream& input, bool metadataOnly)
 	String fileString;
 	TextStream::ReadAll(input, fileString);
 
-	auto& kson = nlohmann::json::parse(fileString);
+	const auto& kson = nlohmann::json::parse(fileString);
 
 	auto& meta = kson["meta"];
 	auto& difficulty = meta["difficulty"];
@@ -213,7 +214,8 @@ bool Beatmap::m_ProcessKSON(BinaryStream& input, bool metadataOnly)
 	//ensure sorted
 	bpm_entries.Sort([](const ByPulse<double>& a, const ByPulse<double>& b) { return a.tick > b.tick; });
 
-
+	if (!kson.contains("note") || kson["note"].is_null())
+		return false;
 	
 	auto& note = kson["note"];
 	auto& bt = note["bt"];
