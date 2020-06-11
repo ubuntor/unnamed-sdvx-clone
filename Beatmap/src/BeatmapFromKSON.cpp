@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "Beatmap.hpp"
 #include "json.hpp"
+#include "kson.hpp"
 #include "Shared/Profiling.hpp"
 #include "Shared/StringEncodingDetector.hpp"
 #include "Shared/StringEncodingConverter.hpp"
@@ -64,6 +65,69 @@ bool checkedGet(const nlohmann::json obj, char* field, double& target)
 	return false;
 }
 
+inline double beatInMs(double bpm) {
+	return 60000.0 / bpm;
+}
+
+inline double tickInMs(double bpm, uint32 resolution)
+{
+	return beatInMs(bpm) / (double)resolution;
+}
+
+inline double msFromTicks(int64 ticks, double bpm, uint32 resolution)
+{
+	return tickInMs(bpm, resolution) * (double)ticks;
+}
+
+MapTime MapTimeFromTicks(const Vector<ByPulse<double>>& bpms, uint32 resolution, int64 tick)
+{
+	if (bpms.empty())
+		return 0;
+
+	auto prev = bpms.front();
+	double ret = 0.0;
+
+	for (auto& bpm : bpms)
+	{
+		if (bpm.tick > tick)
+			break;
+		ret += msFromTicks(bpm.tick - prev.tick, prev.value, resolution);
+	}
+	ret += msFromTicks(tick - prev.tick, prev.value, resolution);
+	return static_cast<MapTime>(Math::Round(ret));
+}
+
+ObjectState* StateFromButtonInterval(const nlohmann::json::value_type& button, int index, const Vector<ByPulse<double>>& bpms, uint32 resolution)
+{
+	Interval interval;
+	interval.length = 0;
+	checkedGet(button, "y", interval.tick);
+	checkedGet(button, "l", interval.length);
+	if (interval.length == 0)
+	{
+		ButtonObjectState* obj = new ButtonObjectState();
+		obj->time = MapTimeFromTicks(bpms, resolution, interval.tick);
+		obj->index = index;
+		obj->hasSample = false;
+		obj->sampleIndex = 0;
+		obj->sampleVolume = 0;
+		return (ObjectState*)obj;
+	}
+	else {
+		HoldObjectState* obj = new HoldObjectState();
+		obj->time = MapTimeFromTicks(bpms, resolution, interval.tick);
+		obj->index = index;
+		obj->duration = MapTimeFromTicks(bpms, resolution, interval.tick + interval.length) - obj->time;
+		obj->effectType = EffectType::None;
+		obj->next = nullptr;
+		obj->prev = nullptr;
+		return (ObjectState*)obj;
+	}
+
+	//TODO
+	return nullptr;
+}
+
 
 bool Beatmap::m_ProcessKSON(BinaryStream& input, bool metadataOnly)
 {
@@ -76,13 +140,13 @@ bool Beatmap::m_ProcessKSON(BinaryStream& input, bool metadataOnly)
 	String fileString;
 	TextStream::ReadAll(input, fileString);
 
-	auto kson = nlohmann::json::parse(fileString);
+	auto& kson = nlohmann::json::parse(fileString);
 
-	auto meta = kson["meta"];
-	auto difficulty = meta["difficulty"];
-	auto beat = kson["beat"];
-	auto audio = kson["audio"];
-	auto bgm = audio["bgm"];
+	auto& meta = kson["meta"];
+	auto& difficulty = meta["difficulty"];
+	auto& beat = kson["beat"];
+	auto& audio = kson["audio"];
+	auto& bgm = audio["bgm"];
 	if (!checkedGet(meta, "title", m_settings.title))
 		return false;
 	if (!checkedGet(meta, "artist", m_settings.artist))
@@ -131,7 +195,107 @@ bool Beatmap::m_ProcessKSON(BinaryStream& input, bool metadataOnly)
 	if (metadataOnly)
 		return true;
 
-
 	//process chart data
-	return false;
+	Vector<ByPulse<double>> bpm_entries;
+	uint32 resolution;
+
+	if (!checkedGet(beat, "resolution", resolution))
+		return false;
+	if (!beat["bpm"].is_array())
+		return false;
+	for (auto& bpm : beat["bpm"])
+	{
+		ByPulse<double> currentBpm;
+		bpm["v"].get_to(currentBpm.value);
+		bpm["y"].get_to(currentBpm.tick);
+		bpm_entries.push_back(currentBpm);
+	}
+	//ensure sorted
+	bpm_entries.Sort([](const ByPulse<double>& a, const ByPulse<double>& b) { return a.tick > b.tick; });
+
+
+	
+	auto& note = kson["note"];
+	auto& bt = note["bt"];
+	auto& fx = note["fx"];
+	auto& laser = note["laser"];
+	if (bt.is_array())
+	{
+		for (size_t i = 0; i < 4; i++)
+		{
+			auto lane = bt[i];
+			if (!lane.is_array())
+				continue;
+
+			for (auto& button : lane)
+			{
+				ObjectState* newState = StateFromButtonInterval(button, i, bpm_entries, resolution);
+				if (newState)
+				{
+					m_objectStates.Add(newState);
+				}
+			}
+		}
+	}
+
+	if (fx.is_array())
+	{
+		for (size_t i = 0; i < 2; i++)
+		{
+			auto lane = fx[i];
+			if (!lane.is_array())
+				continue;
+
+			for (auto& button : lane)
+			{
+				ObjectState* newState = StateFromButtonInterval(button, i + 4, bpm_entries, resolution);
+				if (newState)
+				{
+					m_objectStates.Add(newState);
+				}
+			}
+		}
+	}
+
+	for (auto& bpm : bpm_entries)
+	{
+		TimingPoint* newTp = new TimingPoint();
+		newTp->time = MapTimeFromTicks(bpm_entries, resolution, bpm.tick);
+		newTp->beatDuration = beatInMs(bpm.value);
+		//TODO:
+		newTp->denominator = 4;
+		newTp->numerator = 4;
+		newTp->tickrateOffset = 0;
+		m_timingPoints.push_back(newTp);
+	}
+
+	ZoomControlPoint* firstControlPoints[5] = { nullptr };
+	//process zoom control points
+
+	//fill in missing zoom control points
+	for (int i = 0; i < sizeof(firstControlPoints) / sizeof(ZoomControlPoint*); i++)
+	{
+		ZoomControlPoint* point = firstControlPoints[i];
+		if (!point)
+			continue;
+
+		ZoomControlPoint* dup = new ZoomControlPoint();
+		dup->index = point->index;
+		dup->zoom = point->zoom;
+		dup->time = INT32_MIN;
+
+		m_zoomControlPoints.insert(m_zoomControlPoints.begin(), dup);
+	}
+
+	// Add First Lane Toggle Point
+	LaneHideTogglePoint* startLaneTogglePoint = new LaneHideTogglePoint();
+	startLaneTogglePoint->time = 0;
+	startLaneTogglePoint->duration = 1;
+	m_laneTogglePoints.Add(startLaneTogglePoint);
+
+	//process lane toggles
+
+
+	ObjectState::SortArray(m_objectStates);
+	return true;
 }
