@@ -219,6 +219,8 @@ bool Beatmap::m_ProcessKSON(BinaryStream& input, bool metadataOnly)
 	auto& bt = note["bt"];
 	auto& fx = note["fx"];
 	auto& laser = note["laser"];
+
+	//BTs
 	if (bt.is_array())
 	{
 		for (size_t i = 0; i < 4; i++)
@@ -238,6 +240,7 @@ bool Beatmap::m_ProcessKSON(BinaryStream& input, bool metadataOnly)
 		}
 	}
 
+	//FXs
 	if (fx.is_array())
 	{
 		for (size_t i = 0; i < 2; i++)
@@ -252,6 +255,80 @@ bool Beatmap::m_ProcessKSON(BinaryStream& input, bool metadataOnly)
 				if (newState)
 				{
 					m_objectStates.Add(newState);
+				}
+			}
+		}
+	}
+
+	//Lasers
+	if (laser.is_array())
+	{
+		for (size_t i = 0; i < 2; i++)
+		{
+			auto lane = laser[i];
+			if (!lane.is_array())
+				continue;
+
+			for (auto& segment : lane)
+			{
+				if (!segment["v"].is_array())
+					continue;
+
+				int startTick;
+				uint8 wide;
+				checkedGet(segment, "wide", wide);
+				checkedGet(segment, "y", startTick);
+				LaserObjectState* prev = nullptr;
+				int prevRelative = INT_MIN;
+				double prevValue = 0;
+				for (auto& gp : segment["v"])
+				{
+					double valueFinal;
+					double value;
+					int relativeTick;
+					checkedGet(gp, "v", value);
+					checkedGet(gp, "ry", relativeTick);
+
+					if (prevRelative != INT_MIN) //add segment
+					{
+						LaserObjectState* obj = new LaserObjectState();
+						if (wide == 2)
+							obj->flags |= LaserObjectState::flag_Extended;
+						obj->time = MapTimeFromTicks(bpm_entries, resolution, startTick + prevRelative);
+						obj->duration = MapTimeFromTicks(bpm_entries, resolution, startTick + relativeTick) - obj->time;
+						obj->tick = startTick + prevRelative;
+						obj->index = i;
+						obj->points[0] = prevValue;
+						obj->points[1] = value;
+						if(prev)
+							prev->next = obj;
+						obj->prev = prev;
+
+						prev = obj;
+						m_objectStates.Add((ObjectState*)obj);
+					}
+					prevRelative = relativeTick;
+					prevValue = value;
+					if (checkedGet(gp, "vf", valueFinal) && value != valueFinal) //add slam
+					{
+						LaserObjectState* obj = new LaserObjectState();
+						obj->flags |= LaserObjectState::flag_Instant;
+						if (wide == 2)
+							obj->flags |= LaserObjectState::flag_Extended;
+						obj->time = MapTimeFromTicks(bpm_entries, resolution, startTick + relativeTick);
+						obj->tick = startTick + relativeTick;
+						obj->index = i;
+						obj->points[0] = value;
+						obj->points[1] = valueFinal;
+						if (prev) {
+							prev->next = obj;
+							obj->prev = prev;
+						}
+						prev = obj;
+						m_objectStates.Add((ObjectState*)obj);
+						prevRelative = relativeTick;
+						prevValue = valueFinal;
+					}
 				}
 			}
 		}
