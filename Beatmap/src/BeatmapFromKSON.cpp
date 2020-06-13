@@ -140,6 +140,8 @@ bool Beatmap::m_ProcessKSON(BinaryStream& input, bool metadataOnly)
 
 	String fileString;
 	TextStream::ReadAll(input, fileString);
+	Map<int, ObjectState*> btnMap[6];
+
 
 	const auto& kson = nlohmann::json::parse(fileString);
 
@@ -231,13 +233,16 @@ bool Beatmap::m_ProcessKSON(BinaryStream& input, bool metadataOnly)
 			if (!lane.is_array())
 				continue;
 
+			int laneIdx = 0;
 			for (auto& button : lane)
 			{
 				ObjectState* newState = StateFromButtonInterval(button, i, bpm_entries, resolution);
 				if (newState)
 				{
 					m_objectStates.Add(newState);
+					btnMap[i].Add(laneIdx, newState);
 				}
+				laneIdx++;
 			}
 		}
 	}
@@ -251,13 +256,16 @@ bool Beatmap::m_ProcessKSON(BinaryStream& input, bool metadataOnly)
 			if (!lane.is_array())
 				continue;
 
+			int laneIdx = 0;
 			for (auto& button : lane)
 			{
 				ObjectState* newState = StateFromButtonInterval(button, i + 4, bpm_entries, resolution);
 				if (newState)
 				{
 					m_objectStates.Add(newState);
+					btnMap[i + 4].Add(laneIdx, newState);
 				}
+				laneIdx++;
 			}
 		}
 	}
@@ -283,6 +291,7 @@ bool Beatmap::m_ProcessKSON(BinaryStream& input, bool metadataOnly)
 				LaserObjectState* prev = nullptr;
 				int prevRelative = INT_MIN;
 				double prevValue = 0;
+				int laneIdx = 0;
 				for (auto& gp : segment["v"])
 				{
 					double valueFinal;
@@ -328,8 +337,88 @@ bool Beatmap::m_ProcessKSON(BinaryStream& input, bool metadataOnly)
 						}
 						prev = obj;
 						m_objectStates.Add((ObjectState*)obj);
+						
 						prevRelative = relativeTick;
 						prevValue = valueFinal;
+					}
+					laneIdx++;
+				}
+			}
+		}
+	}
+
+	//Effect entries
+	auto& audioEffect = audio["audio_effect"];
+	auto& effectNoteEvent = audioEffect["note_event"];
+	EffectTypeMap effectMap = EffectTypeMap();
+
+	if (effectNoteEvent.is_object())
+	{
+		for (auto& effect : effectNoteEvent.items())
+		{
+			String effectTypeName = effect.key();
+			auto* effectType = effectMap.FindEffectType(effectTypeName);
+			if (effectType == nullptr)
+			{
+				//TODO: Deal with custom effects
+				Logf("Unknown effect type: %s", Logger::Warning, *effectTypeName);
+				continue;
+			}
+
+			auto& fx = effect.value()["fx"];
+			if (fx.is_array())
+			{
+				for (auto& fxEntry : fx)
+				{
+					int laneIdx, noteIdx;
+					fxEntry.at("idx").get_to(noteIdx);
+					fxEntry.at("lane").get_to(laneIdx);
+					laneIdx += 4;
+					int params[2] = { 0, 0 };
+					params[0] = effectMap.GetDefaultParam(*effectType);
+					//set params
+					if (fxEntry.contains("v") && fxEntry.at("v").is_object())
+					{
+						for (auto& param : fxEntry.at("v").items())
+						{
+							//TODO: Deal with multiple values in value array
+							if (!param.value().is_array())
+								continue;
+							String value;
+							param.value().at(0).get_to(value);
+							
+							switch (*effectType)
+							{
+							case EffectType::Bitcrush:
+								if (param.key() == "reduction")
+									params[0] = std::stoi(value);
+								break;
+							case EffectType::TapeStop:
+								if (param.key() == "speed")
+									params[0] = std::stoi(value);
+								break;
+							default:
+								break;
+							}
+						}
+					}
+					if (laneIdx < 0 || laneIdx > 5)
+					{
+						Logf("Out of bounds button lane: %d", Logger::Warning, laneIdx);
+						continue;
+					}
+					if (btnMap[laneIdx].Contains(noteIdx))
+					{
+						ObjectState* obj = btnMap[laneIdx][noteIdx];
+						if (obj->type == ObjectType::Hold)
+						{
+							HoldObjectState* button = (HoldObjectState*)obj;
+							button->effectType = *effectType;
+							for (size_t i = 0; i < 2; i++)
+							{
+								button->effectParams[i] = static_cast<int16>(params[i]);
+							}
+						}
 					}
 				}
 			}

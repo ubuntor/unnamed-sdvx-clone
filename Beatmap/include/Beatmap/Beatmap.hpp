@@ -47,6 +47,71 @@ struct BeatmapSettings
 	EffectType laserEffectType = EffectType::PeakingFilter;
 };
 
+class EffectTypeMap
+{
+	// Custom effect types
+	uint16 m_customEffectTypeID = (uint16)EffectType::UserDefined0;
+
+public:
+	EffectTypeMap()
+	{
+		// Add common effect types
+		effectTypes["None"] = EffectType::None;
+		effectTypes["Retrigger"] = EffectType::Retrigger;
+		effectTypes["Flanger"] = EffectType::Flanger;
+		effectTypes["Phaser"] = EffectType::Phaser;
+		effectTypes["Gate"] = EffectType::Gate;
+		effectTypes["TapeStop"] = EffectType::TapeStop;
+		effectTypes["BitCrusher"] = EffectType::Bitcrush;
+		effectTypes["Wobble"] = EffectType::Wobble;
+		effectTypes["SideChain"] = EffectType::SideChain;
+		effectTypes["Echo"] = EffectType::Echo;
+		effectTypes["Panning"] = EffectType::Panning;
+		effectTypes["PitchShift"] = EffectType::PitchShift;
+		effectTypes["LPF"] = EffectType::LowPassFilter;
+		effectTypes["HPF"] = EffectType::HighPassFilter;
+		effectTypes["PEAK"] = EffectType::PeakingFilter;
+		effectTypes["SwitchAudio"] = EffectType::SwitchAudio;
+	}
+
+	static const Map<EffectType, int16> CreateDefaults() {
+		Map<EffectType, int16> defaults;
+		defaults[EffectType::Bitcrush] = 4;
+		defaults[EffectType::Gate] = 8;
+		defaults[EffectType::Retrigger] = 8;
+		defaults[EffectType::Phaser] = 2000;
+		defaults[EffectType::Flanger] = 2000;
+		defaults[EffectType::Wobble] = 12;
+		defaults[EffectType::SideChain] = 8;
+		defaults[EffectType::TapeStop] = 50;
+		return defaults;
+	}
+
+	// Only checks if a mapping exists and returns this, or None
+	const EffectType* FindEffectType(const String& name) const
+	{
+		return effectTypes.Find(name);
+	}
+
+	// Adds or returns the enum value mapping to this effect
+	EffectType FindOrAddEffectType(const String& name)
+	{
+		EffectType* id = effectTypes.Find(name);
+		if (!id)
+			return effectTypes.Add(name, (EffectType)m_customEffectTypeID++);
+		return *id;
+	};
+
+	int16 GetDefaultParam(EffectType type) {
+		if (!defaultEffectParams.Contains(type))
+			return 0;
+		return defaultEffectParams.at(type);
+	}
+
+	const Map<EffectType, int16> defaultEffectParams = CreateDefaults();
+	Map<String, EffectType> effectTypes;
+};
+
 /*
 	Generic beatmap format, Can either load it's own format or KShoot maps
 */
