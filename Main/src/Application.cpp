@@ -1282,6 +1282,10 @@ int Application::LoadImageJob(const String &path, Vector2i size, int placeholder
 	return ret;
 }
 
+extern void setpath(lua_State* L, const char* fieldname,
+	const char* envname,
+	const char* dft);
+
 void Application::SetScriptPath(lua_State *s)
 {
 	//Set path for 'require' (https://stackoverflow.com/questions/4125971/setting-the-global-lua-path-variable-from-c-c?lq=1)
@@ -1297,12 +1301,109 @@ void Application::SetScriptPath(lua_State *s)
 	lua_pushstring(s, cur_path.c_str()); // push the new one
 	lua_setfield(s, -2, "path");		 // set the field "path" in table at -2 with value at top of stack
 	lua_pop(s, 1);						 // get rid of package table from top of stack
+
+	lua_getglobal(s, "package");
+	lua_pushstring(s, "");
+	lua_setfield(s, -2, "cpath");		 // set the field "cpath" in table at -2 with value at top of stack
+	lua_pop(s, 1);						 // get rid of package table from top of stack
+}
+
+static const luaL_Reg possibleLoadedlibs[] = {
+  {"_G", luaopen_base},
+  {LUA_LOADLIBNAME, luaopen_package},
+  {LUA_COLIBNAME, luaopen_coroutine},
+  {LUA_TABLIBNAME, luaopen_table},
+  {LUA_IOLIBNAME, luaopen_io},
+  {LUA_OSLIBNAME, luaopen_os},
+  {LUA_STRLIBNAME, luaopen_string},
+  {LUA_MATHLIBNAME, luaopen_math},
+  {LUA_UTF8LIBNAME, luaopen_utf8},
+  {LUA_DBLIBNAME, luaopen_debug},
+#if defined(LUA_COMPAT_BITLIB)
+  {LUA_BITLIBNAME, luaopen_bit32},
+#endif
+  {NULL, NULL}
+};
+
+void luaL_openRestrictedLibs(lua_State* L, Vector<String>allowedLibs)
+{
+	const luaL_Reg* lib;
+	/* "require" functions from 'loadedlibs' and set results to global table */
+	for (lib = possibleLoadedlibs; lib->func; lib++) {
+		String name = lib->name;
+		if (std::find(allowedLibs.begin(), allowedLibs.end(), name) == allowedLibs.end())
+		{
+
+			// Some libs are need partially and will be cleaned up later
+			if (name != "package")
+			{
+				// Library is not allowed
+				continue;
+			}
+		}
+
+		luaL_requiref(L, lib->name, lib->func, 1);
+		lua_pop(L, 1);  /* remove lib */
+	}
+}
+
+void sanitizeLibraries(lua_State* state, Vector<String>allowedLibs)
+{
+	const luaL_Reg* lib;
+	for (lib = possibleLoadedlibs; lib->func; lib++) {
+		String name = lib->name;
+		if (std::find(allowedLibs.begin(), allowedLibs.end(), name) != allowedLibs.end())
+		{
+			// This library is allowed fully
+			continue;
+		}
+		// Any libs past here are denyed (with some exceptions)
+		if (name == "package")
+		{
+			lua_getglobal(state, "package");
+
+			// Remove C searchers so we can't load dlls
+			lua_getfield(state, -1, "searchers"); // Get the searcher list (-1)
+			lua_pushnil(state);
+			lua_rawseti(state, -2, 4); // C root
+			lua_pushnil(state);
+			lua_rawseti(state, -2, 3); // C path
+			lua_pop(state, 1);  /* remove searchers */
+
+			// Remove loadlib so we can't load dlls
+			lua_pushnil(state);
+			lua_setfield(state, -2, "loadlib");
+
+			lua_pop(state, 1);  /* remove package */
+		}
+		else {
+			luaL_dostring(state, (name + " = {}").c_str());
+		}
+
+		// Add catcher for bad values
+		luaL_dostring(state, ("setmetatable(" + name + ", {__index = function() error(\"This skin doesn't have the '" + name + "' library loaded\") end})").c_str());
+
+	}
 }
 
 lua_State *Application::LoadScript(const String &name, bool noError)
 {
 	lua_State *s = luaL_newstate();
-	luaL_openlibs(s);
+
+	// These are the builtinc libs that we allow scripts to use by default
+	Vector<String> allowedLibs{
+		"_G", // XXX(itszn) This has loadfile which can be kinda weird but I think it is safe enough for now, might want to wrap it later...
+		"coroutine",
+		"table",
+		"string",
+		"math",
+		"utf8",
+		"package" // Some parts of package are unsafe (require and loadlib) but we will clean that up later
+	}; 
+	// TODO(itszn) read extra needed libs from some skin metadata file and 
+
+	luaL_openRestrictedLibs(s, allowedLibs);
+	sanitizeLibraries(s, allowedLibs);
 	SetScriptPath(s);
 
 	String path = "skins/" + m_skin + "/scripts/" + name + ".lua";

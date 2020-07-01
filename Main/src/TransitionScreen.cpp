@@ -128,7 +128,7 @@ public:
 			return valid;
 		};
 
-		m_songlua = g_application->LoadScript("songtransition", true);
+		CheckedLoad(m_songlua = g_application->LoadScript("songtransition", true));
 		m_lua = g_application->LoadScript("transition", true);
 		if (m_songlua != nullptr && !validateLua(m_songlua))
 		{
