@@ -1573,8 +1573,10 @@ void Application::LoadGauge(bool hard)
 	m_gauge->maskTexture->SetWrap(Graphics::TextureWrap::Clamp, Graphics::TextureWrap::Clamp);
 	m_gauge->fillMaterial = LoadMaterial("gauge");
 	m_gauge->fillMaterial->opaque = false;
-	m_gauge->baseMaterial = LoadMaterial("guiTex");
-	m_gauge->baseMaterial->opaque = false;
+	m_gauge->backMaterial = LoadMaterial("guiTex");
+	m_gauge->backMaterial->opaque = false;
+	m_gauge->frontMaterial = LoadMaterial("guiTex");
+	m_gauge->frontMaterial->opaque = false;
 }
 
 void Application::DrawGauge(float rate, float x, float y, float w, float h, float deltaTime)
@@ -1802,7 +1804,7 @@ int Application::FastText(String inputText, float x, float y, int size, int alig
 
 	MaterialParameterSet params;
 	params.SetParameter("color", color);
-	g_application->GetRenderQueueBase()->Draw(textTransform, te, g_application->GetFontMaterial(), params);
+	g_application->GetRenderQueueBase()->Draw(textTransform, te, g_application->GetFontMaterial());
 	return 0;
 }
 

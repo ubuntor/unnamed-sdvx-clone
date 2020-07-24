@@ -82,13 +82,14 @@ namespace Graphics
 
 		bool opaque = true;
 		MaterialBlendMode blendMode = MaterialBlendMode::Normal;
+		MaterialParameterSet params;
 
 	public:
 		virtual void AssignShader(ShaderType t, Shader shader) = 0;
 		virtual void Bind(const RenderState& rs, const MaterialParameterSet& params = MaterialParameterSet()) = 0;
 
 		// Only binds parameters to the current shader
-		virtual void BindParameters(const MaterialParameterSet& params, const Transform& worldTransform) = 0;
+		virtual void BindParameters(const Transform& worldTransform) = 0;
 		virtual bool HasUniform(String name) = 0;
 		// Bind only shaders/pipeline to context
 		virtual void BindToContext() = 0;

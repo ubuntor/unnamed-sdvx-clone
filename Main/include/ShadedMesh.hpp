@@ -17,7 +17,7 @@ public:
 
 	template<typename T>
 	void SetParam(const String& name, const T& value) {
-		m_params.SetParameter(name, value);
+		m_material->params.SetParameter(name, value);
 	}
 
 	static int lNew(struct lua_State* L);
@@ -27,6 +27,6 @@ public:
 private:
 	Mesh m_mesh;
 	Material m_material;
-	MaterialParameterSet m_params;
+
 	Map<String, Texture> m_textures;
 };

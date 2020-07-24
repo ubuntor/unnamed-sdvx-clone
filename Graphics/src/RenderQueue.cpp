@@ -45,23 +45,23 @@ namespace Graphics
 		// Create a new list of items
 		for(RenderQueueItem* item : m_orderedCommands)
 		{
-			auto SetupMaterial = [&](Material& mat, MaterialParameterSet& params)
+			auto SetupMaterial = [&](Material& mat)
 			{
 				// Only bind params if material is already bound to context
 				if(currentMaterial == mat)
-					mat->BindParameters(params, m_renderState.worldTransform);
+					mat->BindParameters(m_renderState.worldTransform);
 				else
 				{
 					if(initializedShaders.Contains(mat))
 					{
 						// Only bind params and rebind
-						mat->BindParameters(params, m_renderState.worldTransform);
+						mat->BindParameters(m_renderState.worldTransform);
 						mat->BindToContext();
 						currentMaterial = mat;
 					}
 					else
 					{
-						mat->Bind(m_renderState, params);
+						mat->Bind(m_renderState);
 						initializedShaders.Add(mat);
 						currentMaterial = mat;
 					}
@@ -117,7 +117,7 @@ namespace Graphics
 			{
 				SimpleDrawCall* sdc = (SimpleDrawCall*)item;
 				m_renderState.worldTransform = sdc->worldTransform;
-				SetupMaterial(sdc->mat, sdc->params);
+				SetupMaterial(sdc->mat);
 
 				// Check if scissor is enabled
 				bool useScissor = (sdc->scissorRect.size.x >= 0);
@@ -158,7 +158,7 @@ namespace Graphics
 
 				PointDrawCall* pdc = (PointDrawCall*)item;
 				m_renderState.worldTransform = Transform();
-				SetupMaterial(pdc->mat, pdc->params);
+				SetupMaterial(pdc->mat);
 				PrimitiveType pt = pdc->mesh->GetPrimitiveType();
 				if(pt >= PrimitiveType::LineList && pt <= PrimitiveType::LineStrip)
 				{
@@ -198,46 +198,42 @@ namespace Graphics
 		m_orderedCommands.clear();
 	}
 
-	void RenderQueue::Draw(Transform worldTransform, Mesh m, Material mat, const MaterialParameterSet& params)
+	void RenderQueue::Draw(Transform worldTransform, Mesh m, Material mat)
 	{
 		SimpleDrawCall* sdc = new SimpleDrawCall();
 		sdc->mat = mat;
 		sdc->mesh = m;
-		sdc->params = params;
 		sdc->worldTransform = worldTransform;
 		m_orderedCommands.push_back(sdc);
 	}
-	void RenderQueue::Draw(Transform worldTransform, Ref<class TextRes> text, Material mat, const MaterialParameterSet& params)
+	void RenderQueue::Draw(Transform worldTransform, Ref<class TextRes> text, Material mat)
 	{
 		SimpleDrawCall* sdc = new SimpleDrawCall();
 		sdc->mat = mat;
 		sdc->mesh = text->GetMesh();
-		sdc->params = params;
 		// Set Font texture map
-		sdc->params.SetParameter("mainTex", text->GetTexture());
+		sdc->mat->params.SetParameter("mainTex", text->GetTexture());
 		sdc->worldTransform = worldTransform;
 		m_orderedCommands.push_back(sdc);
 	}
 
-	void RenderQueue::DrawScissored(Rect scissor, Transform worldTransform, Mesh m, Material mat, const MaterialParameterSet& params /*= MaterialParameterSet()*/)
+	void RenderQueue::DrawScissored(Rect scissor, Transform worldTransform, Mesh m, Material mat)
 	{
 		SimpleDrawCall* sdc = new SimpleDrawCall();
 		sdc->mat = mat;
 		sdc->mesh = m;
-		sdc->params = params;
 		sdc->worldTransform = worldTransform;
 		sdc->scissorRect = scissor;
 		m_orderedCommands.push_back(sdc);
 	}
-	void RenderQueue::DrawScissored(Rect scissor, Transform worldTransform, Ref<class TextRes> text, Material mat, const MaterialParameterSet& params /*= MaterialParameterSet()*/)
+	void RenderQueue::DrawScissored(Rect scissor, Transform worldTransform, Ref<class TextRes> text, Material mat)
 	{
 		SimpleDrawCall* sdc = new SimpleDrawCall();
 		sdc->mat = mat;
 		sdc->mesh = text->GetMesh();
-		sdc->params = params;
 		// Set Font texture map
-		sdc->params.SetParameter("mainTex", text->GetTexture());
-		sdc->params.SetParameter("mapSize", text->GetTexture()->GetSize());
+		sdc->mat->params.SetParameter("mainTex", text->GetTexture());
+		sdc->mat->params.SetParameter("mapSize", text->GetTexture()->GetSize());
 		sdc->worldTransform = worldTransform;
 		sdc->scissorRect = scissor;
 		m_orderedCommands.push_back(sdc);
@@ -248,7 +244,6 @@ namespace Graphics
 		PointDrawCall* pdc = new PointDrawCall();
 		pdc->mat = mat;
 		pdc->mesh = m;
-		pdc->params = params;
 		pdc->size = pointSize;
 		m_orderedCommands.push_back(pdc);
 	}

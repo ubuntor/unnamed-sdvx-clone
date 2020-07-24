@@ -5,6 +5,7 @@ class HealthGauge
 public:
 	HealthGauge();
 	void Render(Mesh m, float deltaTime);
+	void SetParams();
 	Vector2 GetDesiredSize();
 
 	// The fill rate of the gauge
@@ -14,7 +15,8 @@ public:
 	Color lowerColor = Colori(0, 204, 255);
 
 	Material fillMaterial;
-	Material baseMaterial;
+	Material backMaterial;
+	Material frontMaterial;
 	Texture frontTexture;
 	Texture fillTexture;
 	Texture backTexture;

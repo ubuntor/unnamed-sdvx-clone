@@ -6,25 +6,19 @@ HealthGauge::HealthGauge()
 {
 }
 
+void HealthGauge::SetParams()
+{
+	backMaterial->params.SetParameter("color", Color::White);
+	backMaterial->params.SetParameter("mainTex", backTexture);
+	fillMaterial->params.SetParameter("mainTex", fillTexture);
+	fillMaterial->params.SetParameter("maskTex", maskTexture);
+	frontMaterial->params.SetParameter("color", Color::White);
+	frontMaterial->params.SetParameter("mainTex", frontTexture);
+}
+
 void HealthGauge::Render(Mesh m, float deltaTime)
 {
-	auto drawTextured = [&](Color c, Texture t)
-	{
-		Transform transform;
-		MaterialParameterSet params;
-		params.SetParameter("mainTex", t);
-		params.SetParameter("color", c);
-		g_application->GetRenderQueueBase()->Draw(transform, m, baseMaterial, params);
-	};
-
-	if(backTexture)
-		drawTextured(Color::White, backTexture);
-
-	MaterialParameterSet params;
-	params.SetParameter("mainTex", fillTexture);
-	params.SetParameter("maskTex", maskTexture);
-	params.SetParameter("rate", rate);
-
+	Transform trans;
 	Color color;
 	if(rate >= colorBorder)
 	{
@@ -34,12 +28,15 @@ void HealthGauge::Render(Mesh m, float deltaTime)
 	{
 		color = lowerColor;
 	}
-	params.SetParameter("barColor", color);
-	Transform trans;
-	g_application->GetRenderQueueBase()->Draw(trans, m, fillMaterial, params);
 
-	//// Draw frame last
-	drawTextured(Color::White, frontTexture);
+	if(backTexture)
+		g_application->GetRenderQueueBase()->Draw(trans, m, backMaterial);
+
+	fillMaterial->params.SetParameter("rate", rate);
+	fillMaterial->params.SetParameter("barColor", color);
+	g_application->GetRenderQueueBase()->Draw(trans, m, fillMaterial);
+
+	g_application->GetRenderQueueBase()->Draw(trans, m, frontMaterial);
 }
 
 Vector2 HealthGauge::GetDesiredSize()

@@ -43,7 +43,7 @@ public:
 
 		// Render a fullscreen quad
 		RenderQueue rq(g_gl, renderState);
-		rq.Draw(Transform(), fullscreenMesh, fullscreenMaterial, fullscreenMaterialParams);
+		rq.Draw(Transform(), fullscreenMesh, fullscreenMaterial);
 		rq.Process();
 	}
 
@@ -52,7 +52,6 @@ public:
 	Material fullscreenMaterial;
 	Map<String, Texture> textures;
 	Texture frameBufferTexture;
-	MaterialParameterSet fullscreenMaterialParams;
 	float clearTransition = 0.0f;
 	float offsyncTimer = 0.0f;
 	float speedMult = 1.0f;
@@ -230,14 +229,14 @@ public:
 		Vector2i screenCenter = game->GetCamera().GetScreenCenter();
 
 		tilt = { game->GetCamera().GetActualRoll(), game->GetCamera().GetBackgroundSpin() };
-		fullscreenMaterialParams.SetParameter("clearTransition", clearTransition);
-		fullscreenMaterialParams.SetParameter("tilt", tilt);
-		fullscreenMaterialParams.SetParameter("screenCenter", screenCenter);
-		fullscreenMaterialParams.SetParameter("timing", timing);
+		fullscreenMaterial->params.SetParameter("clearTransition", clearTransition);
+		fullscreenMaterial->params.SetParameter("tilt", tilt);
+		fullscreenMaterial->params.SetParameter("screenCenter", screenCenter);
+		fullscreenMaterial->params.SetParameter("timing", timing);
 		if (foreground && hasFbTex)
 		{
 			frameBufferTexture->SetFromFrameBuffer();
-			fullscreenMaterialParams.SetParameter("fb_tex", frameBufferTexture);
+			fullscreenMaterial->params.SetParameter("fb_tex", frameBufferTexture);
 		}
 
 		if (foreground)
@@ -301,7 +300,7 @@ public:
 	{
 		String param(luaL_checkstring(L, 2));
 		int v(luaL_checkinteger(L, 3));
-		fullscreenMaterialParams.SetParameter(param, v);
+		fullscreenMaterial->params.SetParameter(param, v);
 		return 0;
 	}
 
@@ -309,14 +308,14 @@ public:
 	{
 		String param(luaL_checkstring(L, 2));
 		float v(luaL_checknumber(L, 3));
-		fullscreenMaterialParams.SetParameter(param, v);
+		fullscreenMaterial->params.SetParameter(param, v);
 		return 0;
 	}
 	int DrawShader(lua_State *L)
 	{
 		for (auto &texParam : textures)
 		{
-			fullscreenMaterialParams.SetParameter(texParam.first, texParam.second);
+			fullscreenMaterial->params.SetParameter(texParam.first, texParam.second);
 		}
 
 		g_application->ForceRender();

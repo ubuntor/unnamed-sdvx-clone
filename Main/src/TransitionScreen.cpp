@@ -13,6 +13,7 @@ class TransitionScreen_Impl : public TransitionScreen
 	Job m_loadingJob;
 	Texture m_fromTexture;
 	Mesh m_bgMesh;
+	Material m_bgMaterial;
 	lua_State *m_lua = nullptr;
 	lua_State *m_songlua = nullptr;
 	Vector<DelegateHandle> m_lamdasToRemove;
@@ -51,6 +52,8 @@ class TransitionScreen_Impl : public TransitionScreen
 		m_loadingJob->OnFinished.Add(this, &TransitionScreen_Impl::OnFinished);
 		m_fromTexture = TextureRes::CreateFromFrameBuffer(g_gl, g_resolution);
 		m_bgMesh = MeshGenerators::Quad(g_gl, Vector2(0, g_resolution.y), Vector2(g_resolution.x, -g_resolution.y));
+		m_bgMaterial->params.SetParameter("color", Color::White);
+		m_bgMaterial->params.SetParameter("mainTex", m_fromTexture);
 		m_tickableToLoad = next;
 		m_stopped = false;
 		m_loadComplete = false;
@@ -151,6 +154,11 @@ public:
 		m_loadingJob = JobBase::CreateLambda([&]() {
 			return DoLoad();
 		});
+
+		m_bgMaterial = g_application->LoadMaterial("guiTex");
+		if(m_bgMaterial.get() == nullptr)
+			return false;
+
 		m_loadingJob->OnFinished.Add(this, &TransitionScreen_Impl::OnFinished);
 		m_initialized = true;
 		return true;
@@ -288,7 +296,7 @@ public:
 				MaterialParameterSet params;
 				params.SetParameter("mainTex", m_fromTexture);
 				params.SetParameter("color", Vector4(1.0f));
-				rq->Draw(t, m_bgMesh, g_application->GetGuiTexMaterial(), params);
+				rq->Draw(t, m_bgMesh, g_application->GetGuiTexMaterial());
 				g_application->ForceRender();
 			}
 
@@ -316,11 +324,7 @@ public:
 		else
 		{
 			Transform t;
-			MaterialParameterSet params;
-			params.SetParameter("mainTex", m_fromTexture);
-			params.SetParameter("color", Vector4(1.0f));
-
-			rq->Draw(t, m_bgMesh, g_application->GetGuiTexMaterial(), params);
+			rq->Draw(t, m_bgMesh, m_bgMaterial);
 			g_application->ForceRender();
 
 			//draw lua

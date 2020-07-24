@@ -146,7 +146,7 @@ namespace Graphics
 				static char infoLogBuffer[2048];
 				int s = 0;
 				glGetProgramInfoLog(programOut, sizeof(infoLogBuffer), &s, infoLogBuffer);
-
+				sourceStr.clear();
 				Logf("Shader program compile log for %s: %s", Logger::Severity::Error, m_sourcePath, infoLogBuffer);
 				return false;
 			}
@@ -157,6 +157,7 @@ namespace Graphics
 			m_lwt = in.GetLastWriteTime();
 			SetupChangeHandler();
 #endif
+			sourceStr.clear();
 			return true;
 		}
 		

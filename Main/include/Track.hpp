@@ -117,8 +117,9 @@ public:
 	Material trackCoverMaterial;
 	Texture laserTextures[2];
 	Texture laserTailTextures[4]; // Entry and exit textures, both sides
-	Material laserMaterial;
-	Material blackLaserMaterial;
+	Material laserCurrentMaterial[2];
+	Material laserComingMaterial[2];
+	Material blackLaserMaterial[2];
 	Texture laserAlertTextures[2];
 	Texture whiteTexture;
 

@@ -234,14 +234,14 @@ namespace Graphics
 			BindAll(SV_Time, rs.time);
 			
 			// Bind parameters
-			BindParameters(params, rs.worldTransform);
+			BindParameters(rs.worldTransform);
 			#ifndef EMBEDDED
 			BindToContext();
 			#endif
 		}
 
 		// Bind only parameters
-		virtual void BindParameters(const MaterialParameterSet& params, const Transform& worldTransform)
+		virtual void BindParameters(const Transform& worldTransform)
 		{
 			BindAll(SV_World, worldTransform);
 			for(auto p : params)

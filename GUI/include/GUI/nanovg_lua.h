@@ -586,7 +586,7 @@ static int lDrawLabel(lua_State* L /*int labelId, float x, float y, float maxWid
 
 	MaterialParameterSet params;
 	params.SetParameter("color", g_guiState.fillColor);
-	g_guiState.rq->DrawScissored(g_guiState.scissor ,textTransform, te.text, *g_guiState.fontMaterial, params);
+	g_guiState.rq->DrawScissored(g_guiState.scissor ,textTransform, te.text, *g_guiState.fontMaterial);
 	return 0;
 }
 
@@ -707,7 +707,7 @@ static int lFastRect(lua_State* L /*float x, float y, float w, float h*/)
 	Mesh quad = Graphics::MeshGenerators::Quad(g_gl, Vector2(x, y), Vector2(w, h));
 	MaterialParameterSet params;
 	params.SetParameter("color", g_guiState.fillColor);
-	g_guiState.rq->DrawScissored(g_guiState.scissor, g_guiState.t, quad, *g_guiState.fillMaterial, params);
+	g_guiState.rq->DrawScissored(g_guiState.scissor, g_guiState.t, quad, *g_guiState.fillMaterial);
 	return 0;
 }
 
@@ -745,7 +745,7 @@ static int lFastText(lua_State* L /* String utf8string, float x, float y */)
 	}
 	MaterialParameterSet params;
 	params.SetParameter("color", g_guiState.fillColor);
-	g_guiState.rq->DrawScissored(g_guiState.scissor, textTransform, te, *g_guiState.fontMaterial, params);
+	g_guiState.rq->DrawScissored(g_guiState.scissor, textTransform, te, *g_guiState.fontMaterial);
 
 	return 0;
 }

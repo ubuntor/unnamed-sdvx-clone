@@ -30,7 +30,7 @@ ShadedMesh::ShadedMesh(const String& name, const String& path) {
 
 void ShadedMesh::Draw() {
 	auto rq = g_application->GetRenderQueueBase();
-	rq->DrawScissored(g_application->GetCurrentGUIScissor() ,g_application->GetCurrentGUITransform(), m_mesh, m_material, m_params);
+	rq->DrawScissored(g_application->GetCurrentGUIScissor() ,g_application->GetCurrentGUITransform(), m_mesh, m_material);
 }
 
 void ShadedMesh::SetData(Vector<MeshGenerators::SimpleVertex>& data) {
