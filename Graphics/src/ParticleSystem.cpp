@@ -273,7 +273,7 @@ namespace Graphics
 		{
 			material->params.SetParameter("mainTex", texture);
 		}
-		material->BindParameters(Transform::Transform());
+		material->BindParameters(rs.worldTransform);
 		material->Bind(rs);
 		// Select blending mode based on material
 		switch(material->blendMode)
