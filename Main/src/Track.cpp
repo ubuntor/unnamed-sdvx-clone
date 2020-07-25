@@ -186,6 +186,17 @@ bool Track::AsyncFinalize()
 		btHitRatingMaterial[i] = spriteMaterial->Clone();
 	}
 
+	const auto setCommonParams = [&](Material mat) {
+		//TODO: needs to be figured out
+		mat->params.SetParameter("trackPos", 0.5f);
+		mat->params.SetParameter("trackScale", 1.0f / trackLength);
+		mat->params.SetParameter("hiddenCutoff", hiddenCutoff); // Hidden cutoff (% of track)
+		mat->params.SetParameter("hiddenFadeWindow", hiddenFadewindow); // Hidden cutoff (% of track)
+		mat->params.SetParameter("suddenCutoff", suddenCutoff); // Hidden cutoff (% of track)
+		mat->params.SetParameter("suddenFadeWindow", suddenFadewindow); // Hidden cutoff (% of track)
+	};
+
+
 	// Laser object material, allows coloring and sampling laser edge texture
 	for (size_t i = 0; i < 2; i++)
 	{
@@ -217,6 +228,10 @@ bool Track::AsyncFinalize()
 
 			laserMissedMaterial[i][j]->params.SetParameter("objectGlow", 0.3f);
 			laserComingMaterial[i][j]->params.SetParameter("objectGlow", 0.75f);
+
+			setCommonParams(laserCurrentMaterial[i][j]);
+			setCommonParams(laserComingMaterial[i][j]);
+			setCommonParams(laserMissedMaterial[i][j]);
 
 		}
 		blackLaserMaterial[i]->opaque = false;
@@ -330,12 +345,10 @@ void Track::Tick(class BeatmapPlayback& playback, float deltaTime)
 	if(fabs(firstOverflow) > 1)
 		tickTime -= firstOverflow;
 
-	m_barTicks.clear();
-
 	// Add first tick
-	m_barTicks.Add(playback.TimeToViewDistance((MapTime)tickTime));
-
-	while(tickTime < rangeEnd)
+	m_barTicks[0] = (playback.TimeToViewDistance((MapTime)tickTime));
+	size_t countBarTick = 0;
+	while(tickTime < rangeEnd && countBarTick < maxBarTicks - 1)
 	{
 		double next = tickTime + stepTime;
 
@@ -352,16 +365,19 @@ void Track::Tick(class BeatmapPlayback& playback, float deltaTime)
 		}
 
 		// Add tick
-		m_barTicks.Add(playback.TimeToViewDistance((MapTime)tickTime));
+		countBarTick++;
+		m_barTicks[countBarTick] = playback.TimeToViewDistance((MapTime)tickTime);
 	}
+
+	m_numBarTicks = countBarTick;
 
 	// Update track hide status
 	m_trackHide += m_trackHideSpeed * deltaTime;
 	m_trackHide = Math::Clamp(m_trackHide, 0.0f, 1.0f);
 
 	// Set Object glow
-	int32 startBeat = 0;
-	uint32 numBeats = playback.CountBeats(m_lastMapTime, currentTime - m_lastMapTime, startBeat, 4);
+	//int32 startBeat = 0;
+	//uint32 numBeats = playback.CountBeats(m_lastMapTime, currentTime - m_lastMapTime, startBeat, 4);
 	objectGlowState = currentTime % 100 < 50 ? 0 : 1;
 	m_lastMapTime = currentTime;
 
@@ -393,29 +409,26 @@ void Track::Tick(class BeatmapPlayback& playback, float deltaTime)
 	//set material parameters
 
 
-
-	const auto setCommonParams = [&](Material& mat) {
-		//TODO: needs to be figured out
-		mat->params.SetParameter("trackPos", 0.5f);
-		mat->params.SetParameter("trackScale", 1.0f / trackLength);
-		mat->params.SetParameter("hiddenCutoff", hiddenCutoff); // Hidden cutoff (% of track)
-		mat->params.SetParameter("hiddenFadeWindow", hiddenFadewindow); // Hidden cutoff (% of track)
-		mat->params.SetParameter("suddenCutoff", suddenCutoff); // Hidden cutoff (% of track)
-		mat->params.SetParameter("suddenFadeWindow", suddenFadewindow); // Hidden cutoff (% of track)
-	};
+	//TODO: Move to public function, they will not change mid-gameplay but can change mid-calibration
+	// const auto setCommonParams = [&](Material mat) {
+	// 	//TODO: needs to be figured out
+	// 	mat->params.SetParameter("trackPos", 0.5f);
+	// 	mat->params.SetParameter("trackScale", 1.0f / trackLength);
+	// 	mat->params.SetParameter("hiddenCutoff", hiddenCutoff); // Hidden cutoff (% of track)
+	// 	mat->params.SetParameter("hiddenFadeWindow", hiddenFadewindow); // Hidden cutoff (% of track)
+	// 	mat->params.SetParameter("suddenCutoff", suddenCutoff); // Hidden cutoff (% of track)
+	// 	mat->params.SetParameter("suddenFadeWindow", suddenFadewindow); // Hidden cutoff (% of track)
+	// };
 
 	for (size_t i = 0; i < 2; i++)
 	{
 		for (size_t j = 0; j < 3; j++)
 		{
-			setCommonParams(laserComingMaterial[i][j]);
-			setCommonParams(laserCurrentMaterial[i][j]);
 			laserCurrentMaterial[i][j]->params.SetParameter("objectGlow", objectGlow);
 		}
 	}
 
-	trackMaterial->params.SetParameter("hidden", m_trackHide);
-	
+	trackMaterial->params.SetParameter("hidden", m_trackHide);	
 }
 
 void Track::DrawLaserBase(RenderQueue& rq, class BeatmapPlayback& playback, const Vector<ObjectState*>& objects)
@@ -461,8 +474,9 @@ void Track::DrawBase(class RenderQueue& rq)
 		rq.Draw(transform, trackMesh, trackMaterial);
 	}
 
-	for (float f : m_barTicks)
+	for (size_t i; i < m_numBarTicks; i++)
 	{
+		float f = m_barTicks[i];
 		float fLocal = f / m_viewRange;
 		Vector3 tickPosition = Vector3(0.0f, trackLength * fLocal - trackTickLength * 0.5f, 0.01f);
 		Transform tickTransform = trackOrigin;

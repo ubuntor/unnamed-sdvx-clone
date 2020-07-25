@@ -159,7 +159,9 @@ private:
 	const TimingPoint* m_lastTimingPoint = nullptr;
 
 	// Bar tick locations
-	Vector<float> m_barTicks;
+	static const int maxBarTicks = 64;
+	float m_barTicks[maxBarTicks] = {0};
+	size_t m_numBarTicks = 0;
 
 	// Active effects
 	Vector<struct TimedEffect*> m_hitEffects;

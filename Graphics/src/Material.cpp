@@ -191,6 +191,7 @@ namespace Graphics
 
 		virtual Ref<MaterialRes> Clone() override
 		{
+			Log("Cloning Material", Logger::Severity::Debug);
 			Material newMat = Create(m_gl);
 			for (size_t i = 0; i < 3; i++)
 			{
@@ -260,7 +261,7 @@ namespace Graphics
 		virtual void BindParameters(const Transform& worldTransform)
 		{
 			BindAll(SV_World, worldTransform);
-			for(auto p : params)
+			for(auto& p : params)
 			{
 				switch(p.second.parameterType)
 				{
@@ -500,38 +501,65 @@ namespace Graphics
 
 	void MaterialRes::MaterialParameterSet::SetParameter(const String& name, int sc)
 	{
-		Add(name, MaterialParameter::Create(sc, GL_INT));
+		if(Contains(name))
+			memcpy(Find(name)->parameterData.data(), &sc, sizeof(int));
+		else	
+			Add(name, MaterialParameter::Create(sc, GL_INT));
 	}
 	void MaterialRes::MaterialParameterSet::SetParameter(const String& name, float sc)
 	{
-		Add(name, MaterialParameter::Create(sc, GL_FLOAT));
+		if(Contains(name))
+			memcpy(Find(name)->parameterData.data(), &sc, sizeof(float));
+		else	
+			Add(name, MaterialParameter::Create(sc, GL_FLOAT));
 	}
 	void MaterialRes::MaterialParameterSet::SetParameter(const String& name, const Vector4& vec)
 	{
-		Add(name, MaterialParameter::Create(vec, GL_FLOAT_VEC4));
+		if(Contains(name))
+			memcpy(Find(name)->parameterData.data(), &vec, sizeof(Vector4));
+		else	
+			Add(name, MaterialParameter::Create(vec, GL_FLOAT_VEC4));
 	}
 	void MaterialRes::MaterialParameterSet::SetParameter(const String& name, const Colori& color)
 	{
-		Add(name, MaterialParameter::Create(Color(color), GL_FLOAT_VEC4));
+		if(Contains(name))
+			memcpy(Find(name)->parameterData.data(), &color, sizeof(Colori));
+		else	
+			Add(name, MaterialParameter::Create(Color(color), GL_FLOAT_VEC4));
 	}
 	void MaterialRes::MaterialParameterSet::SetParameter(const String& name, const Vector2& vec2)
 	{
-		Add(name, MaterialParameter::Create(vec2, GL_FLOAT_VEC2));
+		if(Contains(name))
+			memcpy(Find(name)->parameterData.data(), &vec2, sizeof(Vector2));
+		else	
+			Add(name, MaterialParameter::Create(vec2, GL_FLOAT_VEC2));
 	}
 	void MaterialRes::MaterialParameterSet::SetParameter(const String& name, const Vector3& vec3)
 	{
-		Add(name, MaterialParameter::Create(vec3, GL_FLOAT_VEC3));
+		if(Contains(name))
+			memcpy(Find(name)->parameterData.data(), &vec3, sizeof(Vector3));
+		else	
+			Add(name, MaterialParameter::Create(vec3, GL_FLOAT_VEC3));
 	}
 	void MaterialRes::MaterialParameterSet::SetParameter(const String& name, const Transform& tf)
 	{
-		Add(name, MaterialParameter::Create(tf, GL_FLOAT_MAT4));
+		if(Contains(name))
+			memcpy(Find(name)->parameterData.data(), &tf, sizeof(Transform));
+		else	
+			Add(name, MaterialParameter::Create(tf, GL_FLOAT_MAT4));
 	}
 	void MaterialRes::MaterialParameterSet::SetParameter(const String& name, Ref<class TextureRes> tex)
 	{
-		Add(name, MaterialParameter::Create(tex, GL_SAMPLER_2D));
+		if(Contains(name))
+			memcpy(Find(name)->parameterData.data(), &tex, sizeof(Ref<class TextureRes>));
+		else	
+			Add(name, MaterialParameter::Create(tex, GL_SAMPLER_2D));
 	}
 	void MaterialRes::MaterialParameterSet::SetParameter(const String& name, const Vector2i& vec2)
 	{
-		Add(name, MaterialParameter::Create(vec2, GL_INT_VEC2));
+		if(Contains(name))
+			memcpy(Find(name)->parameterData.data(), &vec2, sizeof(Vector2i));
+		else	
+			Add(name, MaterialParameter::Create(vec2, GL_INT_VEC2));
 	}
 }

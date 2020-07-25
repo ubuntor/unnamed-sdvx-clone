@@ -8,6 +8,7 @@
 #include "Shared/Transform.hpp"
 #include "Shared/Files.hpp"
 #include "Shared/Thread.hpp"
+#include <Shared/Color.hpp>
 #include <atomic>
 #include <mutex>
 
@@ -56,7 +57,7 @@ struct GUIState
 	Map<String, Graphics::Font> fontCahce;
 	Map<lua_State*, Set<int>> vgImages;
 	Graphics::Font currentFont;
-	Vector4 fillColor;
+	Color fillColor;
 	int textAlign;
 	int fontSize;
 	Material* fontMaterial;
@@ -122,7 +123,7 @@ static int LoadFont(const char* name, const char* filename, lua_State* L)
 
 static int lBeginPath(lua_State* L)
 {
-	g_guiState.fillColor = Vector4(1.0);
+	g_guiState.fillColor = Color(1.0);
 	nvgBeginPath(g_guiState.vg);
 	return 0;
 }
@@ -366,7 +367,7 @@ static int lFillColor(lua_State* L /*int r, int g, int b, int a = 255*/)
 		a = 255;
 	}
 	nvgFillColor(g_guiState.vg, nvgRGBA(r, g, b, a));
-	g_guiState.fillColor = Vector4(r / 255.0, g / 255.0, b / 255.0, a / 255.0);
+	g_guiState.fillColor = Color(r / 255.0, g / 255.0, b / 255.0, a / 255.0);
 	return 0;
 }
 static int lRect(lua_State* L /*float x, float y, float w, float h*/)
@@ -586,7 +587,7 @@ static int lDrawLabel(lua_State* L /*int labelId, float x, float y, float maxWid
 
 	//MaterialParameterSet params;
 	//params.SetParameter("color", g_guiState.fillColor);
-	g_guiState.rq->DrawScissored(g_guiState.scissor ,textTransform, te.text, g_guiState.fillColor);
+	g_guiState.rq->DrawScissoredText(g_guiState.scissor ,textTransform, te.text, g_guiState.fillColor);
 	return 0;
 }
 
@@ -745,7 +746,7 @@ static int lFastText(lua_State* L /* String utf8string, float x, float y */)
 	}
 	//MaterialParameterSet params;
 	//params.SetParameter("color", g_guiState.fillColor);
-	g_guiState.rq->DrawScissored(g_guiState.scissor, textTransform, te, g_guiState.fillColor);
+	g_guiState.rq->DrawScissoredText(g_guiState.scissor, textTransform, te, g_guiState.fillColor);
 
 	return 0;
 }

@@ -1810,7 +1810,7 @@ int Application::FastText(String inputText, float x, float y, int size, int alig
 		textTransform *= Transform::Translation(Vector2(-te->size.x, 0));
 	}
 
-	g_application->GetRenderQueueBase()->Draw(textTransform, te, g_guiState.fillColor);
+	g_application->GetRenderQueueBase()->DrawText(textTransform, te, g_guiState.fillColor);
 	return 0;
 }
 
@@ -1937,6 +1937,12 @@ static int lLoadSkinAnimation(lua_State *L)
 static int lLoadSkinFont(lua_State *L /*const char* name */)
 {
 	const char *name = luaL_checkstring(L, 1);
+	Graphics::Font* cached = g_guiState.fontCahce.Find(name);
+	if (cached)
+	{
+		g_guiState.currentFont = *cached;
+		return 0;
+	}
 	String path = "skins/" + g_application->GetCurrentSkin() + "/fonts/" + name;
 	path = Path::Absolute(path);
 	return LoadFont(name, path.c_str(), L);

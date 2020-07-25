@@ -45,7 +45,7 @@ namespace Graphics
 		// Create a new list of items
 		for(RenderQueueItem* item : m_orderedCommands)
 		{
-			auto SetupMaterial = [&](Material& mat)
+			auto SetupMaterial = [&](Material mat)
 			{
 				// Only bind params if material is already bound to context
 				if(currentMaterial == mat)
@@ -102,7 +102,7 @@ namespace Graphics
 			};
 
 			// Draw mesh helper
-			auto DrawOrRedrawMesh = [&](Mesh& mesh)
+			auto DrawOrRedrawMesh = [&](Mesh mesh)
 			{
 				if(currentMesh == mesh)
 					mesh->Redraw();
@@ -243,7 +243,7 @@ namespace Graphics
 		sdc->worldTransform = worldTransform;
 		m_orderedCommands.push_back(sdc);
 	}
-	void RenderQueue::Draw(Transform worldTransform, Ref<class TextRes> text, Color c)
+	void RenderQueue::DrawText(Transform worldTransform, Ref<class TextRes> text, Color c)
 	{
 		TextDrawCall* tdc = new TextDrawCall();
 		tdc->text = text;
@@ -261,7 +261,7 @@ namespace Graphics
 		sdc->scissorRect = scissor;
 		m_orderedCommands.push_back(sdc);
 	}
-	void RenderQueue::DrawScissored(Rect scissor, Transform worldTransform, Ref<class TextRes> text, Color c)
+	void RenderQueue::DrawScissoredText(Rect scissor, Transform worldTransform, Ref<class TextRes> text, Color c)
 	{
 		TextDrawCall* tdc = new TextDrawCall();
 		tdc->text = text;

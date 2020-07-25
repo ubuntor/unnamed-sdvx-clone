@@ -74,9 +74,9 @@ namespace Graphics
 		// Clears all the render commands in the queue
 		void Clear();
 		void Draw(Transform worldTransform, Mesh m, Material mat);
-		void Draw(Transform worldTransform, Ref<class TextRes> text, Color c);
+		void DrawText(Transform worldTransform, Ref<class TextRes> text, Color c);
 		void DrawScissored(Rect scissor, Transform worldTransform, Mesh m, Material mat);
-		void DrawScissored(Rect scissor, Transform worldTransform, Ref<class TextRes> text, Color c);
+		void DrawScissoredText(Rect scissor, Transform worldTransform, Ref<class TextRes> text, Color c);
 
 		// Draw for lines/points with point size parameter
 		void DrawPoints(Mesh m, Material mat, float pointSize);
