@@ -42,6 +42,19 @@ namespace Graphics
 		float size;
 	};
 
+
+	class TextDrawCall : public RenderQueueItem
+	{
+	public:
+		// Text to render
+		Ref<TextRes> text;
+		// The world transform
+		Transform worldTransform;
+		// Scissor rectangle
+		Rect scissorRect;
+		Color color;
+	};
+
 	/*
 		This class is a queue that collects draw commands
 		each of these is stored together with their wanted render state.
@@ -61,12 +74,12 @@ namespace Graphics
 		// Clears all the render commands in the queue
 		void Clear();
 		void Draw(Transform worldTransform, Mesh m, Material mat);
-		void Draw(Transform worldTransform, Ref<class TextRes> text, Material mat);
+		void Draw(Transform worldTransform, Ref<class TextRes> text, Color c);
 		void DrawScissored(Rect scissor, Transform worldTransform, Mesh m, Material mat);
-		void DrawScissored(Rect scissor, Transform worldTransform, Ref<class TextRes> text, Material mat);
+		void DrawScissored(Rect scissor, Transform worldTransform, Ref<class TextRes> text, Color c);
 
 		// Draw for lines/points with point size parameter
-		void DrawPoints(Mesh m, Material mat, const MaterialParameterSet& params, float pointSize);
+		void DrawPoints(Mesh m, Material mat, float pointSize);
 
 	private:
 		RenderState m_renderState;

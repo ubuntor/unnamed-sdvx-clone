@@ -16,9 +16,8 @@ void HealthGauge::SetParams()
 	frontMaterial->params.SetParameter("mainTex", frontTexture);
 }
 
-void HealthGauge::Render(Mesh m, float deltaTime)
+void HealthGauge::Render(Mesh m, float deltaTime, Transform t)
 {
-	Transform trans;
 	Color color;
 	if(rate >= colorBorder)
 	{
@@ -30,13 +29,13 @@ void HealthGauge::Render(Mesh m, float deltaTime)
 	}
 
 	if(backTexture)
-		g_application->GetRenderQueueBase()->Draw(trans, m, backMaterial);
+		g_application->GetRenderQueueBase()->Draw(t, m, backMaterial);
 
 	fillMaterial->params.SetParameter("rate", rate);
 	fillMaterial->params.SetParameter("barColor", color);
-	g_application->GetRenderQueueBase()->Draw(trans, m, fillMaterial);
+	g_application->GetRenderQueueBase()->Draw(t, m, fillMaterial);
 
-	g_application->GetRenderQueueBase()->Draw(trans, m, frontMaterial);
+	g_application->GetRenderQueueBase()->Draw(t, m, frontMaterial);
 }
 
 Vector2 HealthGauge::GetDesiredSize()

@@ -176,6 +176,43 @@ namespace Graphics
 				glUseProgram(0);
 				#endif
 			}
+			else if (Cast<TextDrawCall>(item))
+			{
+				TextDrawCall* tdc = (TextDrawCall*)item;
+				m_renderState.worldTransform = tdc->worldTransform;
+				tdc->text->GetMaterial()->params.SetParameter("mainTex", tdc->text->GetTexture());
+				tdc->text->GetMaterial()->params.SetParameter("color", tdc->color);
+				SetupMaterial(tdc->text->GetMaterial());
+
+				// Check if scissor is enabled
+				bool useScissor = (tdc->scissorRect.size.x >= 0);
+				if (useScissor)
+				{
+					// Apply scissor
+					if (!scissorEnabled)
+					{
+						glEnable(GL_SCISSOR_TEST);
+						scissorEnabled = true;
+					}
+					float scissorY = m_renderState.viewportSize.y - tdc->scissorRect.Bottom();
+					glScissor((int32)tdc->scissorRect.Left(), (int32)scissorY,
+						(int32)tdc->scissorRect.size.x, (int32)tdc->scissorRect.size.y);
+				}
+				else
+				{
+					if (scissorEnabled)
+					{
+						glDisable(GL_SCISSOR_TEST);
+						scissorEnabled = false;
+					}
+				}
+
+
+				DrawOrRedrawMesh(tdc->text->GetMesh());
+#ifdef EMBEDDED
+				glUseProgram(0);
+#endif
+			}
 		}
 
 		// Disable all states that were on
@@ -206,15 +243,13 @@ namespace Graphics
 		sdc->worldTransform = worldTransform;
 		m_orderedCommands.push_back(sdc);
 	}
-	void RenderQueue::Draw(Transform worldTransform, Ref<class TextRes> text, Material mat)
+	void RenderQueue::Draw(Transform worldTransform, Ref<class TextRes> text, Color c)
 	{
-		SimpleDrawCall* sdc = new SimpleDrawCall();
-		sdc->mat = mat;
-		sdc->mesh = text->GetMesh();
-		// Set Font texture map
-		sdc->mat->params.SetParameter("mainTex", text->GetTexture());
-		sdc->worldTransform = worldTransform;
-		m_orderedCommands.push_back(sdc);
+		TextDrawCall* tdc = new TextDrawCall();
+		tdc->text = text;
+		tdc->color = c;
+		tdc->worldTransform = worldTransform;
+		m_orderedCommands.push_back(tdc);
 	}
 
 	void RenderQueue::DrawScissored(Rect scissor, Transform worldTransform, Mesh m, Material mat)
@@ -226,20 +261,17 @@ namespace Graphics
 		sdc->scissorRect = scissor;
 		m_orderedCommands.push_back(sdc);
 	}
-	void RenderQueue::DrawScissored(Rect scissor, Transform worldTransform, Ref<class TextRes> text, Material mat)
+	void RenderQueue::DrawScissored(Rect scissor, Transform worldTransform, Ref<class TextRes> text, Color c)
 	{
-		SimpleDrawCall* sdc = new SimpleDrawCall();
-		sdc->mat = mat;
-		sdc->mesh = text->GetMesh();
-		// Set Font texture map
-		sdc->mat->params.SetParameter("mainTex", text->GetTexture());
-		sdc->mat->params.SetParameter("mapSize", text->GetTexture()->GetSize());
-		sdc->worldTransform = worldTransform;
-		sdc->scissorRect = scissor;
-		m_orderedCommands.push_back(sdc);
+		TextDrawCall* tdc = new TextDrawCall();
+		tdc->text = text;
+		tdc->color = c;
+		tdc->worldTransform = worldTransform;
+		tdc->scissorRect = scissor;
+		m_orderedCommands.push_back(tdc);
 	}
 
-	void RenderQueue::DrawPoints(Mesh m, Material mat, const MaterialParameterSet& params, float pointSize)
+	void RenderQueue::DrawPoints(Mesh m, Material mat, float pointSize)
 	{
 		PointDrawCall* pdc = new PointDrawCall();
 		pdc->mat = mat;

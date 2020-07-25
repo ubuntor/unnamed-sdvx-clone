@@ -15,8 +15,10 @@ namespace Graphics
 		friend class Font_Impl;
 		struct FontSize* fontSize;
 		Ref<class MeshRes> mesh;
+		Ref<class MaterialRes> material;
 	public:
 		~TextRes();
+		Ref<class MaterialRes> GetMaterial();
 		Ref<class TextureRes> GetTexture();
 		Ref<class MeshRes> GetMesh() { return mesh; }
 		void Draw();
@@ -42,7 +44,7 @@ namespace Graphics
 		};
 
 		// Renders the input string into a drawable text object
-		virtual Ref<TextRes> CreateText(const WString& str, uint32 nFontSize, TextOptions options = TextOptions::None) = 0;
+		virtual Ref<TextRes> CreateText(const WString& str, uint32 nFontSize, Ref<class MaterialRes> textMaterial, TextOptions options = TextOptions::None) = 0;
 
 	private:
 		static bool LoadFallbackFont();

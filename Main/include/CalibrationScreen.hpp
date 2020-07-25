@@ -21,6 +21,8 @@ public:
 private:
 	Timer m_timer;
 	Track m_track;
+	Material m_lineMat;
+	Material m_darkMat;
 	Camera m_camera;
 	Sample m_metronome;
 	BeatmapPlayback m_playback;

@@ -189,8 +189,24 @@ namespace Graphics
 #endif
 		}
 
+		virtual Ref<MaterialRes> Clone() override
+		{
+			Material newMat = Create(m_gl);
+			for (size_t i = 0; i < 3; i++)
+			{
+				if (m_shaders[i].get() != nullptr)
+				{
+					newMat->AssignShader(static_cast<ShaderType>(i), m_shaders[i]);
+				}
+			}
+			newMat->params = params;
+			newMat->opaque = opaque;
+			newMat->blendMode = blendMode;
+			return newMat;
+		}
+
 		// Bind render state and params and shaders to context
-		virtual void Bind(const RenderState& rs, const MaterialParameterSet& params) override
+		virtual void Bind(const RenderState& rs) override
 		{
 #if _DEBUG
 			bool reloadedShaders = false;
@@ -482,39 +498,39 @@ namespace Graphics
 		return GetResourceManager<ResourceType::Material>().Register(impl);
 	}
 
-	void MaterialParameterSet::SetParameter(const String& name, int sc)
+	void MaterialRes::MaterialParameterSet::SetParameter(const String& name, int sc)
 	{
 		Add(name, MaterialParameter::Create(sc, GL_INT));
 	}
-	void MaterialParameterSet::SetParameter(const String& name, float sc)
+	void MaterialRes::MaterialParameterSet::SetParameter(const String& name, float sc)
 	{
 		Add(name, MaterialParameter::Create(sc, GL_FLOAT));
 	}
-	void MaterialParameterSet::SetParameter(const String& name, const Vector4& vec)
+	void MaterialRes::MaterialParameterSet::SetParameter(const String& name, const Vector4& vec)
 	{
 		Add(name, MaterialParameter::Create(vec, GL_FLOAT_VEC4));
 	}
-	void MaterialParameterSet::SetParameter(const String& name, const Colori& color)
+	void MaterialRes::MaterialParameterSet::SetParameter(const String& name, const Colori& color)
 	{
 		Add(name, MaterialParameter::Create(Color(color), GL_FLOAT_VEC4));
 	}
-	void MaterialParameterSet::SetParameter(const String& name, const Vector2& vec2)
+	void MaterialRes::MaterialParameterSet::SetParameter(const String& name, const Vector2& vec2)
 	{
 		Add(name, MaterialParameter::Create(vec2, GL_FLOAT_VEC2));
 	}
-	void MaterialParameterSet::SetParameter(const String& name, const Vector3& vec3)
+	void MaterialRes::MaterialParameterSet::SetParameter(const String& name, const Vector3& vec3)
 	{
 		Add(name, MaterialParameter::Create(vec3, GL_FLOAT_VEC3));
 	}
-	void MaterialParameterSet::SetParameter(const String& name, const Transform& tf)
+	void MaterialRes::MaterialParameterSet::SetParameter(const String& name, const Transform& tf)
 	{
 		Add(name, MaterialParameter::Create(tf, GL_FLOAT_MAT4));
 	}
-	void MaterialParameterSet::SetParameter(const String& name, Ref<class TextureRes> tex)
+	void MaterialRes::MaterialParameterSet::SetParameter(const String& name, Ref<class TextureRes> tex)
 	{
 		Add(name, MaterialParameter::Create(tex, GL_SAMPLER_2D));
 	}
-	void MaterialParameterSet::SetParameter(const String& name, const Vector2i& vec2)
+	void MaterialRes::MaterialParameterSet::SetParameter(const String& name, const Vector2i& vec2)
 	{
 		Add(name, MaterialParameter::Create(vec2, GL_INT_VEC2));
 	}

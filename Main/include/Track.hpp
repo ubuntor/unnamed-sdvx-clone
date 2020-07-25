@@ -50,12 +50,11 @@ public:
 	// Things like the laser pointers, hit bar and effect
 	void DrawOverlays(RenderQueue& rq);
 	// Draws a plane over the track
-	void DrawTrackOverlay(RenderQueue& rq, Texture texture, float heightOffset = 0.05f, float widthScale = 1.0f);
+	void DrawTrackOverlay(RenderQueue& rq, float heightOffset = 0.05f, float widthScale = 1.0f);
 	// Draw a centered sprite at pos, relative from the track
-	void DrawSprite(RenderQueue& rq, Vector3 pos, Vector2 size, Texture tex, Color color = Color::White, float tilt = 0.0f);
-	void DrawCombo(RenderQueue& rq, uint32 score, Color color, float scale = 1.0f);
+	void DrawSprite(RenderQueue& rq, Vector3 pos, Vector2 size, Material material, float tilt = 0.0f);
 	void DrawTrackCover(RenderQueue& rq);
-	void DrawCalibrationCritLine(RenderQueue& rq);
+	void DrawCalibrationCritLine(RenderQueue& rq, Material lineMat, Material darkMat);
 
 	Vector3 TransformPoint(const Vector3& p);
 
@@ -115,10 +114,20 @@ public:
 	Material holdButtonMaterial;
 	Material buttonMaterial;
 	Material trackCoverMaterial;
+	Material tickMaterial;
+	Material laserMaterial;
+	Material baseBlackLaserMaterial;
 	Texture laserTextures[2];
 	Texture laserTailTextures[4]; // Entry and exit textures, both sides
-	Material laserCurrentMaterial[2];
-	Material laserComingMaterial[2];
+
+	// [left,right][entry,body,tail]
+	Material laserCurrentMaterial[2][3];
+	Material laserMissedMaterial[2][3];
+	Material laserComingMaterial[2][3];
+
+	Material btHitMaterial[6];
+	Material btHitRatingMaterial[6];
+
 	Material blackLaserMaterial[2];
 	Texture laserAlertTextures[2];
 	Texture whiteTexture;
@@ -139,9 +148,6 @@ public:
 	float objectGlow;
 	// 20Hz flickering. 0 = Miss, 1 = Inactive, 2 & 3 = Active alternating.
 	int objectGlowState;
-
-	// Early/Late indicator
-	struct TimedHitEffect* timedHitEffect = nullptr;
 
 	// Track Origin position
 	Transform trackOrigin;
@@ -196,7 +202,7 @@ struct TimedEffect
 // Button hit effect
 struct ButtonHitEffect : public TimedEffect
 {
-	ButtonHitEffect(uint32 buttonCode, Color color);;
+	ButtonHitEffect(uint32 buttonCode, Color color);
 	virtual void Draw(class RenderQueue& rq) override;
 
 	uint32 buttonCode;
@@ -205,17 +211,9 @@ struct ButtonHitEffect : public TimedEffect
 // Button hit rating effect
 struct ButtonHitRatingEffect : public TimedEffect
 {
-	ButtonHitRatingEffect(uint32 buttonCode, ScoreHitRating rating);;
+	ButtonHitRatingEffect(uint32 buttonCode, ScoreHitRating rating);
 	virtual void Draw(class RenderQueue& rq) override;
 
 	uint32 buttonCode;
 	ScoreHitRating rating;
-};
-
-struct TimedHitEffect : public TimedEffect
-{
-	TimedHitEffect(bool late);
-	virtual void Draw(class RenderQueue& rq) override;
-
-	bool late;
 };

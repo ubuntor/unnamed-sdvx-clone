@@ -4,7 +4,7 @@ class HealthGauge
 {
 public:
 	HealthGauge();
-	void Render(Mesh m, float deltaTime);
+	void Render(Mesh m, float deltaTime, Transform t);
 	void SetParams();
 	Vector2 GetDesiredSize();
 

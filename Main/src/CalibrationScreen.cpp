@@ -55,6 +55,12 @@ bool CalibrationScreen::AsyncFinalize()
 	m_metronome->Play(true);
 	m_camera.track = &m_track;
 
+	m_lineMat = g_application->GetFillMaterial()->Clone();
+	m_lineMat->params.SetParameter("color", Color::Red);
+
+	m_darkMat = g_application->GetFillMaterial()->Clone();
+	m_darkMat->params.SetParameter("color", Color::Black.WithAlpha(0.7f));
+
 	//reinitialize input to apply any changes to button bindings
 	g_input.Cleanup();
 	g_input.Init(*g_gameWindow);
@@ -88,7 +94,7 @@ void CalibrationScreen::Render(float deltaTime)
 		m_track.DrawTrackCover(renderQueue);
 	}
 	m_track.DrawOverlays(renderQueue);
-	m_track.DrawCalibrationCritLine(renderQueue);
+	m_track.DrawCalibrationCritLine(renderQueue, m_lineMat, m_darkMat);
 	renderQueue.Process();
 
 	//Draw nuklear GUI

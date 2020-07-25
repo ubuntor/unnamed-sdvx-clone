@@ -155,7 +155,7 @@ public:
 			return DoLoad();
 		});
 
-		m_bgMaterial = g_application->LoadMaterial("guiTex");
+		m_bgMaterial = g_application->GetGuiTexMaterial()->Clone();
 		if(m_bgMaterial.get() == nullptr)
 			return false;
 
@@ -293,10 +293,7 @@ public:
 			else
 			{
 				Transform t;
-				MaterialParameterSet params;
-				params.SetParameter("mainTex", m_fromTexture);
-				params.SetParameter("color", Vector4(1.0f));
-				rq->Draw(t, m_bgMesh, g_application->GetGuiTexMaterial());
+				rq->Draw(t, m_bgMesh, m_bgMaterial);
 				g_application->ForceRender();
 			}
 

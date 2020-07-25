@@ -78,6 +78,7 @@ public:
 	float GetRenderFPS() const;
 	Material GetFontMaterial() const;
 	Material GetGuiTexMaterial() const;
+	Material GetFillMaterial() const;
 	Transform GetGUIProjection() const;
 	Transform GetCurrentGUITransform() const;
 	Rect GetCurrentGUIScissor() const;
@@ -153,6 +154,8 @@ private:
 	String m_multiRoomId;
 	int m_multiRoomSize = 0;
 	int m_multiRoomCount = 0;
+
+	Mesh m_guiMesh;
 };
 
 class JacketLoadingJob : public JobBase

@@ -109,6 +109,7 @@ private:
 	// The play field
 	Track* m_track = nullptr;
 
+
 	// The camera watching the playfield
 	Camera m_camera;
 
@@ -397,6 +398,7 @@ public:
 		m_track->hiddenCutoff = g_gameConfig.GetFloat(GameConfigKeys::HiddenCutoff);
 		m_track->hiddenFadewindow = g_gameConfig.GetFloat(GameConfigKeys::HiddenFade);
 		m_track->distantButtonScale = g_gameConfig.GetFloat(GameConfigKeys::DistantButtonScale);
+		
 		m_showCover = g_gameConfig.GetBool(GameConfigKeys::ShowCover);
 
 		#ifdef EMBEDDED

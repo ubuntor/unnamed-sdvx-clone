@@ -269,13 +269,12 @@ namespace Graphics
 			m_finished = !updatedSomething;
 		}
 
-		MaterialParameterSet params;
 		if(texture)
 		{
-			params.SetParameter("mainTex", texture);
+			material->params.SetParameter("mainTex", texture);
 		}
-		material->Bind(rs, params);
-
+		material->BindParameters(Transform::Transform());
+		material->Bind(rs);
 		// Select blending mode based on material
 		switch(material->blendMode)
 		{
@@ -289,7 +288,6 @@ namespace Graphics
 			glBlendFunc(GL_SRC_ALPHA, GL_SRC_COLOR);
 			break;
 		}
-
 		m_mesh->SetData(verts);	
 		m_mesh->Draw();
 	}

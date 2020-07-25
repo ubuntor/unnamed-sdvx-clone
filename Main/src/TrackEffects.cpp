@@ -57,7 +57,7 @@ void ButtonHitEffect::Draw(class RenderQueue& rq)
 	hitEffectSize.y = track->scoreHitTexture->CalculateHeight(hitEffectSize.x) * yMult;
 	Color c = color.WithAlpha(GetRate());
 	c.w *= yMult / 2.f;
-	track->DrawSprite(rq, Vector3(x, hitEffectSize.y * 0.5f, 0.0f), hitEffectSize, track->scoreHitTexture, c);
+	track->DrawSprite(rq, Vector3(x, hitEffectSize.y * 0.5f, 0.0f), hitEffectSize, track->btHitMaterial[buttonCode]);
 }
 
 ButtonHitRatingEffect::ButtonHitRatingEffect(uint32 buttonCode, ScoreHitRating rating) : TimedEffect(0.3f), buttonCode(buttonCode), rating(rating)
@@ -124,38 +124,6 @@ void ButtonHitRatingEffect::Draw(class RenderQueue& rq)
 		// Intensity scale
 		Utility::Reinterpret<Vector3>(c) *= iScale;
 
-		track->DrawSprite(rq, Vector3(x, y + hitEffectSize.y * 0.5f, -0.02f), hitEffectSize, hitTexture, c, 0.0f);
-	}
-}
-
-TimedHitEffect::TimedHitEffect(bool late) : TimedEffect(0.75f), late(late)
-{
-
-}
-
-void TimedHitEffect::Draw(class RenderQueue& rq)
-{
-	float x = 0.0f;
-	float w = track->buttonWidth * 2;
-	float y = 0.5f;
-
-	float iScale = 1.0f;
-	uint32 on = (uint32)floorf(time * 20) % 2;
-
-	if (on == 1)
-	{
-		//Texture hitTexture = track->scoreTimeTextures[late ? 1 : 0];
-		Texture hitTexture = track->scoreHitTextures[late ? 1 : 0];
-
-		// Size of effect
-		Vector2 hitEffectSize = Vector2(track->buttonWidth * 2.f, 0.0f);
-		hitEffectSize.y = hitTexture->CalculateHeight(hitEffectSize.x);
-
-		// Fade out
-		Color c = Color::White;
-		// Intensity scale
-		Utility::Reinterpret<Vector3>(c) *= iScale;
-
-		track->DrawSprite(rq, Vector3(x, y + hitEffectSize.y * 0.5f, -0.02f), hitEffectSize, hitTexture, c, 0.0f);
+		track->DrawSprite(rq, Vector3(x, y + hitEffectSize.y * 0.5f, -0.02f), hitEffectSize, track->btHitRatingMaterial[buttonCode], 0.0f);
 	}
 }

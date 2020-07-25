@@ -7,6 +7,7 @@
 #include "OpenGL.hpp"
 #include <Shared/Timer.hpp>
 #include <Shared/Profiling.hpp>
+#include <Graphics/Material.hpp>
 
 #include <ft2build.h>
 #include FT_FREETYPE_H
@@ -165,6 +166,11 @@ namespace Graphics
 	{
 	}
 
+	Ref<class MaterialRes> TextRes::GetMaterial()
+	{
+		return material;
+	}
+
 	Ref<class TextureRes> TextRes::GetTexture()
 	{
 		return fontSize->GetTextureMap();
@@ -246,7 +252,7 @@ namespace Graphics
 			m_sizes.Add(nSize, pMap);
 			return pMap;
 		}
-		Ref<TextRes> CreateText(const WString& str, uint32 nFontSize, TextOptions options)
+		Ref<TextRes> CreateText(const WString& str, uint32 nFontSize, Material textMaterial, TextOptions options)
 		{
 			FontSize* size = GetSize(nFontSize);
 
@@ -333,7 +339,7 @@ namespace Graphics
 			ret->fontSize = size;
 			ret->mesh->SetData(vertices);
 			ret->mesh->SetPrimitiveType(PrimitiveType::TriangleList);
-
+			ret->material = textMaterial->Clone();
 			Text textObj = Utility::MakeRef(ret);
 			// Insert into cache
 			size->cache.AddText(str, textObj);

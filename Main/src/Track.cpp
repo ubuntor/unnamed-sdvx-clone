@@ -37,8 +37,7 @@ Track::~Track()
 	{
 		delete *it;
 	}
-	if(timedHitEffect)
-		delete timedHitEffect;
+
 }
 bool Track::AsyncLoad()
 {
@@ -96,13 +95,9 @@ bool Track::AsyncLoad()
 	loader->AddMaterial(spriteMaterial, "sprite"); // General purpose material
 	loader->AddMaterial(buttonMaterial, "button");
 	loader->AddMaterial(holdButtonMaterial, "holdbutton");
-	for (size_t i = 0; i < 2; i++)
-	{
-		//TODO: Material copying, or something like that.
-		loader->AddMaterial(laserCurrentMaterial[i], "laser");
-		loader->AddMaterial(laserComingMaterial[i], "laser");
-		loader->AddMaterial(blackLaserMaterial[i], "blackLaser");
-	}
+	loader->AddMaterial(laserMaterial, "laser");
+	loader->AddMaterial(baseBlackLaserMaterial, "blackLaser");
+
 	loader->AddMaterial(trackOverlay, "overlay");
 
 	return loader->Load();
@@ -113,6 +108,21 @@ bool Track::AsyncFinalize()
 	bool success = loader->Finalize();
 	delete loader;
 	loader = nullptr;
+
+	// Copy base materials to used materials
+	for (size_t i = 0; i < 2; i++)
+	{
+		//TODO: Material copying, or something like that.
+		for (size_t j = 0; j < 3; j++)
+		{
+			laserCurrentMaterial[i][j] = laserMaterial->Clone();
+			laserMissedMaterial[i][j] = laserMaterial->Clone();
+			laserComingMaterial[i][j] = laserMaterial->Clone();
+		}
+		blackLaserMaterial[i] = baseBlackLaserMaterial->Clone();
+	}
+
+	tickMaterial = buttonMaterial->Clone();
 
 	// Load track cover material & texture here for skin back-compat
 	trackCoverMaterial = g_application->LoadMaterial("trackCover");
@@ -170,20 +180,52 @@ bool Track::AsyncFinalize()
 	trackMaterial->params.SetParameter("rCol", laserColors[1]);
 	spriteMaterial->opaque = false;
 
+	for (size_t i = 0; i < 6; i++)
+	{
+		btHitMaterial[i] = spriteMaterial->Clone();
+		btHitRatingMaterial[i] = spriteMaterial->Clone();
+	}
+
 	// Laser object material, allows coloring and sampling laser edge texture
 	for (size_t i = 0; i < 2; i++)
 	{
-		Texture t = laserTextures[i];
-		laserCurrentMaterial[i]->blendMode = MaterialBlendMode::Additive;
-		laserCurrentMaterial[i]->opaque = false;
-		laserComingMaterial[i]->blendMode = MaterialBlendMode::Additive;
-		laserComingMaterial[i]->opaque = false;
-		blackLaserMaterial[i]->opaque = false;
+		for (size_t j = 0; j < 3; j++)
+		{
+			Texture t;
+			if (j == 0)
+				t = laserTailTextures[i];
+			else if (j == 1)
+				t = laserTextures[i];
+			else
+				t = laserTailTextures[i + 2];
 
-		laserCurrentMaterial[i]->params.SetParameter("mainTex", t);
-		laserComingMaterial[i]->params.SetParameter("mainTex", t);
-		blackLaserMaterial[i]->params.SetParameter("mainTex", t);
+			laserCurrentMaterial[i][j]->blendMode = MaterialBlendMode::Additive;
+			laserCurrentMaterial[i][j]->opaque = false;
+			laserComingMaterial[i][j]->blendMode = MaterialBlendMode::Additive;
+			laserComingMaterial[i][j]->opaque = false;
+			laserMissedMaterial[i][j]->blendMode = MaterialBlendMode::Additive;
+			laserMissedMaterial[i][j]->opaque = false;
+
+			laserCurrentMaterial[i][j]->params.SetParameter("mainTex", t);
+			laserComingMaterial[i][j]->params.SetParameter("mainTex", t);
+			laserMissedMaterial[i][j]->params.SetParameter("mainTex", t);
+
+			laserCurrentMaterial[i][j]->params.SetParameter("color", laserColors[i]);
+			laserComingMaterial[i][j]->params.SetParameter("color", laserColors[i]);
+			laserMissedMaterial[i][j]->params.SetParameter("color", laserColors[i]);
+
+
+			laserMissedMaterial[i][j]->params.SetParameter("objectGlow", 0.3f);
+			laserComingMaterial[i][j]->params.SetParameter("objectGlow", 0.75f);
+
+		}
+		blackLaserMaterial[i]->opaque = false;
+		blackLaserMaterial[i]->params.SetParameter("mainTex", laserTextures[i]);
 	}
+
+
+	tickMaterial->params.SetParameter("mainTex", trackTickTexture);
+	tickMaterial->params.SetParameter("hasSample", false);
 
 	// Overlay shader
 	trackOverlay->opaque = false;
@@ -245,10 +287,6 @@ bool Track::AsyncFinalize()
 	whiteTexture->SetData({ 1,1 }, (void*)whiteData);
 
 
-	timedHitEffect = new TimedHitEffect(false);
-	timedHitEffect->time = 0;
-	timedHitEffect->track = this;
-
 	return success;
 }
 void Track::Tick(class BeatmapPlayback& playback, float deltaTime)
@@ -274,7 +312,6 @@ void Track::Tick(class BeatmapPlayback& playback, float deltaTime)
 		}
 		it++;
 	}
-	timedHitEffect->Tick(deltaTime);
 
 	MapTime currentTime = playback.GetLastTime();
 
@@ -354,20 +391,30 @@ void Track::Tick(class BeatmapPlayback& playback, float deltaTime)
 	}
 
 	//set material parameters
-	const auto setCommonParams = [&](MaterialParameterSet& params) {
-		params.SetParameter("trackScale", 1.0f / trackLength);
-		params.SetParameter("hiddenCutoff", hiddenCutoff); // Hidden cutoff (% of track)
-		params.SetParameter("hiddenFadeWindow", hiddenFadewindow); // Hidden cutoff (% of track)
-		params.SetParameter("suddenCutoff", suddenCutoff); // Hidden cutoff (% of track)
-		params.SetParameter("suddenFadeWindow", suddenFadewindow); // Hidden cutoff (% of track)
+
+
+
+	const auto setCommonParams = [&](Material& mat) {
+		//TODO: needs to be figured out
+		mat->params.SetParameter("trackPos", 0.5f);
+		mat->params.SetParameter("trackScale", 1.0f / trackLength);
+		mat->params.SetParameter("hiddenCutoff", hiddenCutoff); // Hidden cutoff (% of track)
+		mat->params.SetParameter("hiddenFadeWindow", hiddenFadewindow); // Hidden cutoff (% of track)
+		mat->params.SetParameter("suddenCutoff", suddenCutoff); // Hidden cutoff (% of track)
+		mat->params.SetParameter("suddenFadeWindow", suddenFadewindow); // Hidden cutoff (% of track)
 	};
 
 	for (size_t i = 0; i < 2; i++)
 	{
-		setCommonParams(laserComingMaterial[i]->params);	
-		setCommonParams(laserCurrentMaterial[i]->params);
-		laserCurrentMaterial[i]->params.SetParameter("objectGlow", objectGlow);
+		for (size_t j = 0; j < 3; j++)
+		{
+			setCommonParams(laserComingMaterial[i][j]);
+			setCommonParams(laserCurrentMaterial[i][j]);
+			laserCurrentMaterial[i][j]->params.SetParameter("objectGlow", objectGlow);
+		}
 	}
+
+	trackMaterial->params.SetParameter("hidden", m_trackHide);
 	
 }
 
@@ -403,11 +450,7 @@ void Track::DrawLaserBase(RenderQueue& rq, class BeatmapPlayback& playback, cons
 void Track::DrawBase(class RenderQueue& rq)
 {
 	// Base
-	MaterialParameterSet params;
 	Transform transform = trackOrigin;
-
-	params.SetParameter("hidden", m_trackHide);
-
 	if (centerSplit != 0.0f)
 	{
 		rq.Draw(transform * Transform::Translation({centerSplit * 0.5f * buttonWidth, 0.0f, 0.0f}), splitTrackMesh[0], trackMaterial);
@@ -418,9 +461,6 @@ void Track::DrawBase(class RenderQueue& rq)
 		rq.Draw(transform, trackMesh, trackMaterial);
 	}
 
-	// Draw the main beat ticks on the track
-	params.SetParameter("mainTex", trackTickTexture);
-	params.SetParameter("hasSample", false);
 	for (float f : m_barTicks)
 	{
 		float fLocal = f / m_viewRange;
@@ -429,12 +469,12 @@ void Track::DrawBase(class RenderQueue& rq)
 		tickTransform *= Transform::Translation(tickPosition);
 		if (centerSplit != 0.0f)
 		{
-			rq.Draw(tickTransform * Transform::Translation({ centerSplit * 0.5f * buttonWidth, 0.0f, 0.0f }), splitTrackTickMesh[0], buttonMaterial);
-			rq.Draw(tickTransform * Transform::Translation({ -centerSplit * 0.5f * buttonWidth, 0.0f, 0.0f }), splitTrackTickMesh[1], buttonMaterial);
+			rq.Draw(tickTransform * Transform::Translation({ centerSplit * 0.5f * buttonWidth, 0.0f, 0.0f }), splitTrackTickMesh[0], tickMaterial);
+			rq.Draw(tickTransform * Transform::Translation({ -centerSplit * 0.5f * buttonWidth, 0.0f, 0.0f }), splitTrackTickMesh[1], tickMaterial);
 		}
 		else
 		{
-			rq.Draw(tickTransform, trackTickMesh, buttonMaterial);
+			rq.Draw(tickTransform, trackTickMesh, tickMaterial);
 		}
 	}
 }
@@ -449,7 +489,6 @@ void Track::DrawObjectState(RenderQueue& rq, class BeatmapPlayback& playback, Ob
 	{
 		bool isHold = obj->type == ObjectType::Hold;
 		MultiObjectState* mobj = (MultiObjectState*)obj;
-		MaterialParameterSet params;
 		Material mat = buttonMaterial;
 		Mesh mesh;
 		float xscale = 1.0f;
@@ -478,8 +517,8 @@ void Track::DrawObjectState(RenderQueue& rq, class BeatmapPlayback& playback, Ob
 				xposition += width * ((1.0 - xscale) / 2.0);
 			}
 			length = buttonLength;
-			params.SetParameter("hasSample", mobj->button.hasSample);
-			params.SetParameter("mainTex", isHold ? buttonHoldTexture : buttonTexture);
+			//params.SetParameter("hasSample", mobj->button.hasSample);
+			//params.SetParameter("mainTex", isHold ? buttonHoldTexture : buttonTexture);
 			mesh = buttonMesh;
 		}
 		else // FX Button
@@ -495,21 +534,19 @@ void Track::DrawObjectState(RenderQueue& rq, class BeatmapPlayback& playback, Ob
 				xposition += 0.5f * centerSplit * buttonWidth;
 			}
 			length = fxbuttonLength;
-			params.SetParameter("hasSample", mobj->button.hasSample);
-			params.SetParameter("mainTex", isHold ? fxbuttonHoldTexture : fxbuttonTexture);
 			mesh = fxbuttonMesh;
 		}
 
-		params.SetParameter("trackPos", position);
+		//params.SetParameter("trackPos", position);
 
 		if(isHold)
 		{
-			if(!active && mobj->hold.GetRoot()->time > playback.GetLastTime())
+			/*if(!active && mobj->hold.GetRoot()->time > playback.GetLastTime())
 				params.SetParameter("hitState", 1);
 			else
 				params.SetParameter("hitState", currentObjectGlowState);
 
-			params.SetParameter("objectGlow", currentObjectGlow);
+			params.SetParameter("objectGlow", currentObjectGlow);*/
 			mat = holdButtonMaterial;
 		}
 
@@ -523,18 +560,18 @@ void Track::DrawObjectState(RenderQueue& rq, class BeatmapPlayback& playback, Ob
 			float trackScale = (playback.DurationToViewDistanceAtTime(mobj->time, mobj->hold.duration) / viewRange) / length;
 			scale = trackScale * trackLength;
 
-			params.SetParameter("trackScale", trackScale);
+			//params.SetParameter("trackScale", trackScale);
 		}
 		else {
 			//Use actual distance from camera instead of position on the track?
 			scale = 1.0f + (Math::Max(1.0f, distantButtonScale) - 1.0f) * position;
-			params.SetParameter("trackScale", 1.0f / trackLength);
+			//params.SetParameter("trackScale", 1.0f / trackLength);
 		}
 
-		params.SetParameter("hiddenCutoff", hiddenCutoff); // Hidden cutoff (% of track)
-		params.SetParameter("hiddenFadeWindow", hiddenFadewindow); // Hidden cutoff (% of track)
-		params.SetParameter("suddenCutoff", suddenCutoff); // Sudden cutoff (% of track)
-		params.SetParameter("suddenFadeWindow", suddenFadewindow); // Sudden cutoff (% of track)
+		//params.SetParameter("hiddenCutoff", hiddenCutoff); // Hidden cutoff (% of track)
+		//params.SetParameter("hiddenFadeWindow", hiddenFadewindow); // Hidden cutoff (% of track)
+		//params.SetParameter("suddenCutoff", suddenCutoff); // Sudden cutoff (% of track)
+		//params.SetParameter("suddenFadeWindow", suddenFadewindow); // Sudden cutoff (% of track)
 
 
 		buttonTransform *= Transform::Scale({ xscale, scale, 1.0f });
@@ -549,40 +586,24 @@ void Track::DrawObjectState(RenderQueue& rq, class BeatmapPlayback& playback, Ob
 		LaserObjectState* laser = (LaserObjectState*)obj;
 
 		// Draw segment function
-		auto DrawSegment = [&](Mesh mesh, Texture texture, int part)
+		auto DrawSegment = [&](Mesh mesh, int section)
 		{
-			MaterialParameterSet laserParams;
-			laserParams.SetParameter("trackPos", posmult * position / trackLength);
-			laserParams.SetParameter("trackScale", 1.0f / trackLength);
-			laserParams.SetParameter("hiddenCutoff", hiddenCutoff); // Hidden cutoff (% of track)
-			laserParams.SetParameter("hiddenFadeWindow", hiddenFadewindow); // Hidden cutoff (% of track)
-			laserParams.SetParameter("suddenCutoff", suddenCutoff); // Hidden cutoff (% of track)
-			laserParams.SetParameter("suddenFadeWindow", suddenFadewindow); // Hidden cutoff (% of track)
-
-			// Make not yet hittable lasers slightly glowing
-			Material laserMaterial;
+			assert(section < 3);
+			Material mat = laserMissedMaterial[laser->index][section];
 			if (laser->GetRoot()->time > playback.GetLastTime())
-			{
-				laserMaterial = laserComingMaterial[laser->index];
-			}
-			else
-			{
-				laserMaterial = laserCurrentMaterial[laser->index];
-			}
-			laserParams.SetParameter("mainTex", texture);
-			laserParams.SetParameter("laserPart", part);
+				mat = laserComingMaterial[laser->index][section];
+			else if(active)
+				mat = laserCurrentMaterial[laser->index][section];
+
 
 			// Get the length of this laser segment
 			Transform laserTransform = trackOrigin;
 			laserTransform *= Transform::Translation(Vector3{ 0.0f, posmult * position,
 				0.0f });
 
-			// Set laser color
-			laserParams.SetParameter("color", laserColors[laser->index]);
-
 			if(mesh)
 			{
-				rq.Draw(laserTransform, mesh, laserMaterial);
+				rq.Draw(laserTransform, mesh, mat);
 			}
 		};
 
@@ -590,18 +611,18 @@ void Track::DrawObjectState(RenderQueue& rq, class BeatmapPlayback& playback, Ob
 		if(!laser->prev)
 		{
 			Mesh laserTail = m_laserTrackBuilder[laser->index]->GenerateTrackEntry(playback, laser);
-			DrawSegment(laserTail, laserTailTextures[laser->index], 1);
+			DrawSegment(laserTail, 0);
 		}
 
 		// Body
 		Mesh laserMesh = m_laserTrackBuilder[laser->index]->GenerateTrackMesh(playback, laser);
-		DrawSegment(laserMesh, laserTextures[laser->index], 0);
+		DrawSegment(laserMesh, 1);
 
 		// Draw exit?
 		if(!laser->next && (laser->flags & LaserObjectState::flag_Instant) != 0) // Only draw exit on slams
 		{
 			Mesh laserTail = m_laserTrackBuilder[laser->index]->GenerateTrackExit(playback, laser);
-			DrawSegment(laserTail, laserTailTextures[2 + laser->index], 2);
+			DrawSegment(laserTail, 2);
 		}
 	}
 }
@@ -612,19 +633,15 @@ void Track::DrawOverlays(class RenderQueue& rq)
 	{
 		hfx->Draw(rq);
 	}
-	if(timedHitEffect->time > 0.0f)
-		timedHitEffect->Draw(rq);
 }
-void Track::DrawTrackOverlay(RenderQueue& rq, Texture texture, float heightOffset /*= 0.05f*/, float widthScale /*= 1.0f*/)
+void Track::DrawTrackOverlay(RenderQueue& rq, float heightOffset /*= 0.05f*/, float widthScale /*= 1.0f*/)
 {
-	MaterialParameterSet params;
-	params.SetParameter("mainTex", texture);
 	Transform transform = trackOrigin;
 	transform *= Transform::Scale({ widthScale, 1.0f, 1.0f });
 	transform *= Transform::Translation({ 0.0f, heightOffset, 0.0f });
 	rq.Draw(transform, trackMesh, trackOverlay);
 }
-void Track::DrawSprite(RenderQueue& rq, Vector3 pos, Vector2 size, Texture tex, Color color /*= Color::White*/, float tilt /*= 0.0f*/)
+void Track::DrawSprite(RenderQueue& rq, Vector3 pos, Vector2 size, Material material, float tilt /*= 0.0f*/)
 {
 	Transform spriteTransform = trackOrigin;
 	spriteTransform *= Transform::Translation(pos);
@@ -632,40 +649,7 @@ void Track::DrawSprite(RenderQueue& rq, Vector3 pos, Vector2 size, Texture tex, 
 	if(tilt != 0.0f)
 		spriteTransform *= Transform::Rotation({ tilt, 0.0f, 0.0f });
 
-	MaterialParameterSet params;
-	params.SetParameter("mainTex", tex);
-	params.SetParameter("color", color);
-	rq.Draw(spriteTransform, centeredTrackMesh, spriteMaterial);
-}
-void Track::DrawCombo(RenderQueue& rq, uint32 score, Color color, float scale)
-{
-	if(score == 0)
-		return;
-	Vector<Mesh> meshes;
-	while(score > 0)
-	{
-		uint32 c = score % 10;
-		meshes.Add(comboSpriteMeshes[c]);
-		score -= c;
-		score /= 10;
-	}
-	const float charWidth = trackWidth * 0.15f * scale;
-	const float seperation = charWidth * 0.7f;
-	float size = (float)(meshes.size()-1) * seperation;
-	float halfSize = size * 0.5f;
-
-	///TODO: cleanup
-	MaterialParameterSet params;
-	params.SetParameter("mainTex", 0);
-	params.SetParameter("color", color);
-	for(uint32 i = 0; i < meshes.size(); i++)
-	{
-		float xpos = -halfSize + seperation * (meshes.size()-1-i);
-		Transform t = trackOrigin;
-		t *= Transform::Translation({ xpos, 0.3f, -0.004f});
-		t *= Transform::Scale({charWidth, charWidth, 1.0f});
-		rq.Draw(t, meshes[i], spriteMaterial);
-	}
+	rq.Draw(spriteTransform, centeredTrackMesh, material);
 }
 
 void Track::DrawTrackCover(RenderQueue& rq)
@@ -674,12 +658,11 @@ void Track::DrawTrackCover(RenderQueue& rq)
 	if (trackCoverMaterial && trackCoverTexture)
 	{
 		Transform t = trackOrigin;
-		MaterialParameterSet p;
-		p.SetParameter("mainTex", trackCoverTexture);
-		p.SetParameter("hiddenCutoff", hiddenCutoff); // Hidden cutoff (% of track)
-		p.SetParameter("hiddenFadeWindow", hiddenFadewindow); // Hidden cutoff (% of track)
-		p.SetParameter("suddenCutoff", suddenCutoff); // Hidden cutoff (% of track)
-		p.SetParameter("suddenFadeWindow", suddenFadewindow); // Hidden cutoff (% of track)
+		trackCoverMaterial->params.SetParameter("mainTex", trackCoverTexture);
+		trackCoverMaterial->params.SetParameter("hiddenCutoff", hiddenCutoff); // Hidden cutoff (% of track)
+		trackCoverMaterial->params.SetParameter("hiddenFadeWindow", hiddenFadewindow); // Hidden cutoff (% of track)
+		trackCoverMaterial->params.SetParameter("suddenCutoff", suddenCutoff); // Hidden cutoff (% of track)
+		trackCoverMaterial->params.SetParameter("suddenFadeWindow", suddenFadewindow); // Hidden cutoff (% of track)
 
 		if (centerSplit != 0.0f)
 		{
@@ -694,21 +677,11 @@ void Track::DrawTrackCover(RenderQueue& rq)
 	#endif
 }
 
-void Track::DrawCalibrationCritLine(RenderQueue& rq)
+void Track::DrawCalibrationCritLine(RenderQueue& rq, Material lineMat, Material darkMat)
 {
 	Transform t = trackOrigin;
-	{
-		MaterialParameterSet params;
-		params.SetParameter("color", Color::Red);
-		params.SetParameter("mainTex", whiteTexture);
-		rq.Draw(t, calibrationCritMesh, spriteMaterial);
-	}
-	{
-		MaterialParameterSet params;
-		params.SetParameter("color", Color::Black.WithAlpha(0.6));
-		params.SetParameter("mainTex", whiteTexture);
-		rq.Draw(t, calibrationDarkMesh, spriteMaterial);
-	}
+	rq.Draw(t, calibrationDarkMesh, darkMat);
+	rq.Draw(t, calibrationCritMesh, lineMat);
 }
 
 Vector3 Track::TransformPoint(const Vector3 & p)

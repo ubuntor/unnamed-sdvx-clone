@@ -849,6 +849,7 @@ bool Application::m_Init()
 	Path::CreateDir(Path::Absolute("songs"));
 	Path::CreateDir(Path::Absolute("replays"));
 
+	m_guiMesh = MeshGenerators::Quad(g_gl, { 0,0 });
 	return true;
 }
 void Application::m_MainLoop()
@@ -1577,13 +1578,15 @@ void Application::LoadGauge(bool hard)
 	m_gauge->backMaterial->opaque = false;
 	m_gauge->frontMaterial = LoadMaterial("guiTex");
 	m_gauge->frontMaterial->opaque = false;
+	m_gauge->SetParams();
 }
 
 void Application::DrawGauge(float rate, float x, float y, float w, float h, float deltaTime)
 {
 	m_gauge->rate = rate;
-	Mesh m = MeshGenerators::Quad(g_gl, Vector2(x, y), Vector2(w, h));
-	m_gauge->Render(m, deltaTime);
+	Transform t = Transform::Translation({ x,y,0 });
+	t *= Transform::Scale({ w,h,0 });
+	m_gauge->Render(m_guiMesh, deltaTime, t);
 }
 
 float Application::GetRenderFPS() const
@@ -1599,6 +1602,11 @@ Material Application::GetFontMaterial() const
 Material Application::GetGuiTexMaterial() const
 {
 	return m_guiTex;
+}
+
+Material Application::GetFillMaterial() const
+{
+	return m_fillMaterial;
 }
 
 Transform Application::GetGUIProjection() const
@@ -1778,7 +1786,7 @@ int Application::FastText(String inputText, float x, float y, int size, int alig
 {
 	WString text = Utility::ConvertToWString(inputText);
 	String fontpath = Path::Normalize(Path::Absolute("fonts/settings/NotoSans-Regular.ttf"));
-	Text te = g_application->LoadFont(fontpath, true)->CreateText(text, size);
+	Text te = g_application->LoadFont(fontpath, true)->CreateText(text, size, *g_guiState.fontMaterial);
 	Transform textTransform;
 	textTransform *= Transform::Translation(Vector2(x, y));
 
@@ -1802,9 +1810,7 @@ int Application::FastText(String inputText, float x, float y, int size, int alig
 		textTransform *= Transform::Translation(Vector2(-te->size.x, 0));
 	}
 
-	MaterialParameterSet params;
-	params.SetParameter("color", color);
-	g_application->GetRenderQueueBase()->Draw(textTransform, te, g_application->GetFontMaterial());
+	g_application->GetRenderQueueBase()->Draw(textTransform, te, g_guiState.fillColor);
 	return 0;
 }
 
