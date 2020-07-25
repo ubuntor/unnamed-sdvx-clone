@@ -19,22 +19,22 @@ namespace Graphics
 		SV__BuiltInEnd,
 		SV_User = 0x100, // Start defining user variables here
 	};
-	const char* builtInShaderVariableNames[] =
-	{
-		"world",
-		"proj",
-		"camera",
-		"billboard",
-		"viewport",
-		"aspectRatio",
-		"time",
+	const char *builtInShaderVariableNames[] =
+		{
+			"world",
+			"proj",
+			"camera",
+			"billboard",
+			"viewport",
+			"aspectRatio",
+			"time",
 	};
 	class BuiltInShaderVariableMap : public Map<String, BuiltInShaderVariable>
 	{
 	public:
 		BuiltInShaderVariableMap()
 		{
-			for(int32 i = 0; i < SV__BuiltInEnd; i++)
+			for (int32 i = 0; i < SV__BuiltInEnd; i++)
 			{
 				Add(builtInShaderVariableNames[i], (BuiltInShaderVariable)i);
 			}
@@ -45,7 +45,7 @@ namespace Graphics
 	struct BoundParameterInfo
 	{
 		BoundParameterInfo(ShaderType shaderType, uint32 paramType, uint32 location)
-			:shaderType(shaderType), paramType(paramType), location(location)
+			: shaderType(shaderType), paramType(paramType), location(location)
 		{
 		}
 
@@ -63,7 +63,7 @@ namespace Graphics
 	class Material_Impl : public MaterialRes
 	{
 	public:
-		OpenGL* m_gl;
+		OpenGL *m_gl;
 		Shader m_shaders[3];
 #if _DEBUG
 		String m_debugNames[3];
@@ -80,7 +80,7 @@ namespace Graphics
 		uint32 m_textureID = 0;
 		Set<String> m_uniforms;
 
-		Material_Impl(OpenGL* gl) : m_gl(gl)
+		Material_Impl(OpenGL *gl) : m_gl(gl)
 		{
 #ifdef EMBEDDED
 			m_program = glCreateProgram();
@@ -90,12 +90,12 @@ namespace Graphics
 		}
 		~Material_Impl()
 		{
-			#ifdef EMBEDDED
+#ifdef EMBEDDED
 			if (glIsProgram(m_program))
 				glDeleteProgram(m_program);
-			#else
+#else
 			glDeleteProgramPipelines(1, &m_pipeline);
-			#endif
+#endif
 		}
 		void AssignShader(ShaderType t, Shader shader)
 		{
@@ -114,74 +114,74 @@ namespace Graphics
 #ifdef EMBEDDED
 			glAttachShader(m_program, handle);
 			glLinkProgram(m_program);
-			
+
 			glGetProgramiv(m_program, GL_ACTIVE_UNIFORMS, &numUniforms);
 #else
 			glGetProgramiv(handle, GL_ACTIVE_UNIFORMS, &numUniforms);
 #endif
-			
-			for(int32 i = 0; i < numUniforms; i++)
+
+			for (int32 i = 0; i < numUniforms; i++)
 			{
 				char name[64];
 				int32 nameLen, size;
 				uint32 type;
-				#ifdef EMBEDDED
+#ifdef EMBEDDED
 				glGetActiveUniform(m_program, i, sizeof(name), &nameLen, &size, &type, name);
 				uint32 loc = glGetUniformLocation(m_program, name);
-				#else
+#else
 				glGetActiveUniform(handle, i, sizeof(name), &nameLen, &size, &type, name);
 				uint32 loc = glGetUniformLocation(handle, name);
-				#endif
+#endif
 				m_uniforms.Add(name);
 				// Select type
 				uint32 textureID = 0;
 				String typeName = "Unknown";
-				if(type == GL_SAMPLER_2D)
+				if (type == GL_SAMPLER_2D)
 				{
 					typeName = "Sampler2D";
-					if(!m_textureIDs.Contains(name))
+					if (!m_textureIDs.Contains(name))
 						m_textureIDs.Add(name, m_textureID++);
 				}
-				else if(type == GL_FLOAT_MAT4)
+				else if (type == GL_FLOAT_MAT4)
 				{
 					typeName = "Transform";
 				}
-				else if(type == GL_FLOAT_VEC4)
+				else if (type == GL_FLOAT_VEC4)
 				{
 					typeName = "Vector4";
 				}
-				else if(type == GL_FLOAT_VEC3)
+				else if (type == GL_FLOAT_VEC3)
 				{
 					typeName = "Vector3";
 				}
-				else if(type == GL_FLOAT_VEC2)
+				else if (type == GL_FLOAT_VEC2)
 				{
 					typeName = "Vector2";
 				}
-				else if(type == GL_FLOAT)
+				else if (type == GL_FLOAT)
 				{
 					typeName = "Float";
 				}
 
 				// Built in variable?
 				uint32 targetID = 0;
-				if(builtInShaderVariableMap.Contains(name))
+				if (builtInShaderVariableMap.Contains(name))
 				{
 					targetID = builtInShaderVariableMap[name];
 				}
 				else
 				{
-					if(m_mappedParameters.Contains(name))
+					if (m_mappedParameters.Contains(name))
 						targetID = m_mappedParameters[name];
 					else
 						targetID = m_mappedParameters.Add(name, m_userID++);
 				}
 
-				BoundParameterInfo& param = m_boundParameters.FindOrAdd(targetID).Add(BoundParameterInfo(t, type, loc));
+				BoundParameterInfo &param = m_boundParameters.FindOrAdd(targetID).Add(BoundParameterInfo(t, type, loc));
 
 #ifdef _DEBUG
 				Logf("Uniform [%d, loc=%d, %s] = %s", Logger::Severity::Info,
-					i, loc, Utility::Sprintf("Unknown [%d]", type), name);
+					 i, loc, Utility::Sprintf("Unknown [%d]", type), name);
 #endif // _DEBUG
 			}
 #ifndef EMBEDDED
@@ -207,20 +207,20 @@ namespace Graphics
 		}
 
 		// Bind render state and params and shaders to context
-		virtual void Bind(const RenderState& rs) override
+		virtual void Bind(const RenderState &rs) override
 		{
 #if _DEBUG
 			bool reloadedShaders = false;
-			for(uint32 i = 0; i < 3; i++)
+			for (uint32 i = 0; i < 3; i++)
 			{
-				if(m_shaders[i] && m_shaders[i]->UpdateHotReload())
+				if (m_shaders[i] && m_shaders[i]->UpdateHotReload())
 				{
 					reloadedShaders = true;
 				}
 			}
 
 			// Regenerate parameter map
-			if(reloadedShaders)
+			if (reloadedShaders)
 			{
 				Log("Reloading material", Logger::Severity::Info);
 				m_boundParameters.clear();
@@ -228,19 +228,19 @@ namespace Graphics
 				m_mappedParameters.clear();
 				m_userID = SV_User;
 				m_textureID = 0;
-				for(uint32 i = 0; i < 3; i++)
+				for (uint32 i = 0; i < 3; i++)
 				{
-					if(m_shaders[i])
+					if (m_shaders[i])
 						AssignShader(ShaderType(i), m_shaders[i]);
-					#ifdef EMBEDDED
+#ifdef EMBEDDED
 					glLinkProgram(m_program);
-					#endif
+#endif
 				}
 			}
 #endif
-			#ifdef EMBEDDED
+#ifdef EMBEDDED
 			BindToContext();
-			#endif
+#endif
 			// Bind renderstate variables
 			BindAll(SV_Proj, rs.projectionTransform);
 			BindAll(SV_Camera, rs.cameraTransform);
@@ -249,21 +249,21 @@ namespace Graphics
 			Transform billboard = CameraMatrix::BillboardMatrix(rs.cameraTransform);
 			BindAll(SV_BillboardMatrix, billboard);
 			BindAll(SV_Time, rs.time);
-			
+
 			// Bind parameters
 			BindParameters(rs.worldTransform);
-			#ifndef EMBEDDED
+#ifndef EMBEDDED
 			BindToContext();
-			#endif
+#endif
 		}
 
 		// Bind only parameters
-		virtual void BindParameters(const Transform& worldTransform)
+		virtual void BindParameters(const Transform &worldTransform)
 		{
 			BindAll(SV_World, worldTransform);
-			for(auto& p : params)
+			for (auto &p : params)
 			{
-				switch(p.second.parameterType)
+				switch (p.second.parameterType)
 				{
 				case GL_INT:
 					BindAll(p.first, p.second.Get<int>());
@@ -294,8 +294,8 @@ namespace Graphics
 					break;
 				case GL_SAMPLER_2D:
 				{
-					uint32* textureUnit = m_textureIDs.Find(p.first);
-					if(!textureUnit)
+					uint32 *textureUnit = m_textureIDs.Find(p.first);
+					if (!textureUnit)
 					{
 						/// TODO: Add print once mechanism for these kind of errors
 						//Logf("Texture not found \"%s\"", Logger::Warning, p.first);
@@ -305,7 +305,6 @@ namespace Graphics
 
 					// Bind the texture
 					texture->Bind(*textureUnit);
-
 
 					// Bind sampler
 					BindAll<int32>(p.first, *textureUnit);
@@ -319,12 +318,12 @@ namespace Graphics
 
 		virtual void BindToContext()
 		{
-			// Bind pipeline to context
-			#ifdef EMBEDDED
+// Bind pipeline to context
+#ifdef EMBEDDED
 			glUseProgram(m_program);
-			#else
+#else
 			glBindProgramPipeline(m_pipeline);
-			#endif
+#endif
 		}
 
 		virtual bool HasUniform(String name) override
@@ -332,17 +331,17 @@ namespace Graphics
 			return m_uniforms.Contains(name);
 		}
 
-		BoundParameterInfo* GetBoundParameters(const String& name, uint32& count)
+		BoundParameterInfo *GetBoundParameters(const String &name, uint32 &count)
 		{
-			uint32* mappedID = m_mappedParameters.Find(name);
-			if(!mappedID)
+			uint32 *mappedID = m_mappedParameters.Find(name);
+			if (!mappedID)
 				return nullptr;
 			return GetBoundParameters((BuiltInShaderVariable)*mappedID, count);
 		}
-		BoundParameterInfo* GetBoundParameters(BuiltInShaderVariable bsv, uint32& count)
+		BoundParameterInfo *GetBoundParameters(BuiltInShaderVariable bsv, uint32 &count)
 		{
-			BoundParameterList* l = m_boundParameters.Find(bsv);
-			if(!l)
+			BoundParameterList *l = m_boundParameters.Find(bsv);
+			if (!l)
 				return nullptr;
 			else
 			{
@@ -350,132 +349,154 @@ namespace Graphics
 				return l->data();
 			}
 		}
-		template<typename T> void BindAll(const String& name, const T& obj)
+		template <typename T>
+		void BindAll(const String &name, const T &obj)
 		{
 			uint32 num = 0;
-			#ifdef EMBEDDED
+#ifdef EMBEDDED
 			glUseProgram(m_program);
-			#endif
-			BoundParameterInfo* bp = GetBoundParameters(name, num);
-			for(uint32 i = 0; bp && i < num; i++)
+#endif
+			BoundParameterInfo *bp = GetBoundParameters(name, num);
+			for (uint32 i = 0; bp && i < num; i++)
 			{
 				BindShaderVar<T>(m_shaders[(size_t)bp[i].shaderType]->Handle(), bp[i].location, obj);
 			}
 		}
-		template<typename T> void BindAll(BuiltInShaderVariable bsv, const T& obj)
+		template <typename T>
+		void BindAll(BuiltInShaderVariable bsv, const T &obj)
 		{
 			uint32 num = 0;
-			#ifdef EMBEDDED
+#ifdef EMBEDDED
 			glUseProgram(m_program);
-			#endif
-			BoundParameterInfo* bp = GetBoundParameters(bsv, num);
-			for(uint32 i = 0; bp && i < num; i++)
+#endif
+			BoundParameterInfo *bp = GetBoundParameters(bsv, num);
+			for (uint32 i = 0; bp && i < num; i++)
 			{
 				BindShaderVar<T>(m_shaders[(size_t)bp[i].shaderType]->Handle(), bp[i].location, obj);
 			}
 		}
 
-		template<typename T> void BindShaderVar(uint32 shader, uint32 loc, const T& obj)
+		template <typename T>
+		void BindShaderVar(uint32 shader, uint32 loc, const T &obj)
 		{
 			static_assert(sizeof(T) != 0, "Incompatible shader uniform type");
 		}
 	};
-	
+
 #ifdef EMBEDDED
-	template<> void Material_Impl::BindShaderVar<Vector4>(uint32 shader, uint32 loc, const Vector4& obj)
+	template <>
+	void Material_Impl::BindShaderVar<Vector4>(uint32 shader, uint32 loc, const Vector4 &obj)
 	{
 		glUniform4fv(loc, 1, &obj.x);
 	}
-	template<> void Material_Impl::BindShaderVar<Vector3>(uint32 shader, uint32 loc, const Vector3& obj)
+	template <>
+	void Material_Impl::BindShaderVar<Vector3>(uint32 shader, uint32 loc, const Vector3 &obj)
 	{
 		glUniform3fv(loc, 1, &obj.x);
 	}
-	template<> void Material_Impl::BindShaderVar<Vector2>(uint32 shader, uint32 loc, const Vector2& obj)
+	template <>
+	void Material_Impl::BindShaderVar<Vector2>(uint32 shader, uint32 loc, const Vector2 &obj)
 	{
 		glUniform2fv(loc, 1, &obj.x);
 	}
-	template<> void Material_Impl::BindShaderVar<float>(uint32 shader, uint32 loc, const float& obj)
+	template <>
+	void Material_Impl::BindShaderVar<float>(uint32 shader, uint32 loc, const float &obj)
 	{
 		glUniform1fv(loc, 1, &obj);
 	}
-	template<> void Material_Impl::BindShaderVar<Colori>(uint32 shader, uint32 loc, const Colori& obj)
+	template <>
+	void Material_Impl::BindShaderVar<Colori>(uint32 shader, uint32 loc, const Colori &obj)
 	{
 		Color c = obj;
 		glUniform4fv(loc, 1, &c.x);
 	}
-	template<> void Material_Impl::BindShaderVar<Vector4i>(uint32 shader, uint32 loc, const Vector4i& obj)
+	template <>
+	void Material_Impl::BindShaderVar<Vector4i>(uint32 shader, uint32 loc, const Vector4i &obj)
 	{
 		glUniform4iv(loc, 1, &obj.x);
 	}
-	template<> void Material_Impl::BindShaderVar<Vector3i>(uint32 shader, uint32 loc, const Vector3i& obj)
+	template <>
+	void Material_Impl::BindShaderVar<Vector3i>(uint32 shader, uint32 loc, const Vector3i &obj)
 	{
 		glUniform3iv(loc, 1, &obj.x);
 	}
-	template<> void Material_Impl::BindShaderVar<Vector2i>(uint32 shader, uint32 loc, const Vector2i& obj)
+	template <>
+	void Material_Impl::BindShaderVar<Vector2i>(uint32 shader, uint32 loc, const Vector2i &obj)
 	{
 		glUniform2iv(loc, 1, &obj.x);
 	}
-	template<> void Material_Impl::BindShaderVar<int32>(uint32 shader, uint32 loc, const int32& obj)
+	template <>
+	void Material_Impl::BindShaderVar<int32>(uint32 shader, uint32 loc, const int32 &obj)
 	{
 		glUniform1iv(loc, 1, &obj);
 	}
-	template<> void Material_Impl::BindShaderVar<Transform>(uint32 shader, uint32 loc, const Transform& obj)
+	template <>
+	void Material_Impl::BindShaderVar<Transform>(uint32 shader, uint32 loc, const Transform &obj)
 	{
 		glUniformMatrix4fv(loc, 1, GL_FALSE, obj.mat);
 	}
 #else
-	template<> void Material_Impl::BindShaderVar<Vector4>(uint32 shader, uint32 loc, const Vector4& obj)
+	template <>
+	void Material_Impl::BindShaderVar<Vector4>(uint32 shader, uint32 loc, const Vector4 &obj)
 	{
 		glProgramUniform4fv(shader, loc, 1, &obj.x);
 	}
-	template<> void Material_Impl::BindShaderVar<Vector3>(uint32 shader, uint32 loc, const Vector3& obj)
+	template <>
+	void Material_Impl::BindShaderVar<Vector3>(uint32 shader, uint32 loc, const Vector3 &obj)
 	{
 		glProgramUniform3fv(shader, loc, 1, &obj.x);
 	}
-	template<> void Material_Impl::BindShaderVar<Vector2>(uint32 shader, uint32 loc, const Vector2& obj)
+	template <>
+	void Material_Impl::BindShaderVar<Vector2>(uint32 shader, uint32 loc, const Vector2 &obj)
 	{
 		glProgramUniform2fv(shader, loc, 1, &obj.x);
 	}
-	template<> void Material_Impl::BindShaderVar<float>(uint32 shader, uint32 loc, const float& obj)
+	template <>
+	void Material_Impl::BindShaderVar<float>(uint32 shader, uint32 loc, const float &obj)
 	{
 		glProgramUniform1fv(shader, loc, 1, &obj);
 	}
-	template<> void Material_Impl::BindShaderVar<Colori>(uint32 shader, uint32 loc, const Colori& obj)
+	template <>
+	void Material_Impl::BindShaderVar<Colori>(uint32 shader, uint32 loc, const Colori &obj)
 	{
 		Color c = obj;
 		glProgramUniform4fv(shader, loc, 1, &c.x);
 	}
-	template<> void Material_Impl::BindShaderVar<Vector4i>(uint32 shader, uint32 loc, const Vector4i& obj)
+	template <>
+	void Material_Impl::BindShaderVar<Vector4i>(uint32 shader, uint32 loc, const Vector4i &obj)
 	{
 		glProgramUniform4iv(shader, loc, 1, &obj.x);
 	}
-	template<> void Material_Impl::BindShaderVar<Vector3i>(uint32 shader, uint32 loc, const Vector3i& obj)
+	template <>
+	void Material_Impl::BindShaderVar<Vector3i>(uint32 shader, uint32 loc, const Vector3i &obj)
 	{
 		glProgramUniform3iv(shader, loc, 1, &obj.x);
 	}
-	template<> void Material_Impl::BindShaderVar<Vector2i>(uint32 shader, uint32 loc, const Vector2i& obj)
+	template <>
+	void Material_Impl::BindShaderVar<Vector2i>(uint32 shader, uint32 loc, const Vector2i &obj)
 	{
 		glProgramUniform2iv(shader, loc, 1, &obj.x);
 	}
-	template<> void Material_Impl::BindShaderVar<int32>(uint32 shader, uint32 loc, const int32& obj)
+	template <>
+	void Material_Impl::BindShaderVar<int32>(uint32 shader, uint32 loc, const int32 &obj)
 	{
 		glProgramUniform1iv(shader, loc, 1, &obj);
 	}
-	template<> void Material_Impl::BindShaderVar<Transform>(uint32 shader, uint32 loc, const Transform& obj)
+	template <>
+	void Material_Impl::BindShaderVar<Transform>(uint32 shader, uint32 loc, const Transform &obj)
 	{
 		glProgramUniformMatrix4fv(shader, loc, 1, GL_FALSE, obj.mat);
 	}
 #endif
 
-	Material MaterialRes::Create(OpenGL* gl)
+	Material MaterialRes::Create(OpenGL *gl)
 	{
-		Material_Impl* impl = new Material_Impl(gl);
+		Material_Impl *impl = new Material_Impl(gl);
 		return GetResourceManager<ResourceType::Material>().Register(impl);
-
 	}
-	Material MaterialRes::Create(OpenGL* gl, const String& vsPath, const String& fsPath)
+	Material MaterialRes::Create(OpenGL *gl, const String &vsPath, const String &fsPath)
 	{
-		Material_Impl* impl = new Material_Impl(gl);
+		Material_Impl *impl = new Material_Impl(gl);
 		impl->AssignShader(ShaderType::Vertex, ShaderRes::Create(gl, ShaderType::Vertex, vsPath));
 		impl->AssignShader(ShaderType::Fragment, ShaderRes::Create(gl, ShaderType::Fragment, fsPath));
 #if _DEBUG
@@ -483,13 +504,13 @@ namespace Graphics
 		impl->m_debugNames[(size_t)ShaderType::Fragment] = fsPath;
 #endif
 
-		if(!impl->m_shaders[(size_t)ShaderType::Vertex])
+		if (!impl->m_shaders[(size_t)ShaderType::Vertex])
 		{
 			Logf("Failed to load vertex shader for material from %s", Logger::Severity::Error, vsPath);
 			delete impl;
 			return Material();
 		}
-		if(!impl->m_shaders[(size_t)ShaderType::Fragment])
+		if (!impl->m_shaders[(size_t)ShaderType::Fragment])
 		{
 			Logf("Failed to load fragment shader for material from %s", Logger::Severity::Error, fsPath);
 			delete impl;
@@ -499,67 +520,76 @@ namespace Graphics
 		return GetResourceManager<ResourceType::Material>().Register(impl);
 	}
 
-	void MaterialRes::MaterialParameterSet::SetParameter(const String& name, int sc)
+	void MaterialRes::MaterialParameterSet::SetParameter(const String &name, int sc)
 	{
-		if(Contains(name))
-			memcpy(Find(name)->parameterData.data(), &sc, sizeof(int));
-		else	
+		auto it = find(name);
+		if (it != end())
+			memcpy(it->second.parameterData.data(), &sc, sizeof(int));
+		else
 			Add(name, MaterialParameter::Create(sc, GL_INT));
 	}
-	void MaterialRes::MaterialParameterSet::SetParameter(const String& name, float sc)
+	void MaterialRes::MaterialParameterSet::SetParameter(const String &name, float sc)
 	{
-		if(Contains(name))
-			memcpy(Find(name)->parameterData.data(), &sc, sizeof(float));
-		else	
+		auto it = find(name);
+		if (it != end())
+			memcpy(it->second.parameterData.data(), &sc, sizeof(float));
+		else
 			Add(name, MaterialParameter::Create(sc, GL_FLOAT));
 	}
-	void MaterialRes::MaterialParameterSet::SetParameter(const String& name, const Vector4& vec)
+	void MaterialRes::MaterialParameterSet::SetParameter(const String &name, const Vector4 &vec)
 	{
-		if(Contains(name))
-			memcpy(Find(name)->parameterData.data(), &vec, sizeof(Vector4));
-		else	
+		auto it = find(name);
+		if (it != end())
+			memcpy(it->second.parameterData.data(), &vec, sizeof(Vector4));
+		else
 			Add(name, MaterialParameter::Create(vec, GL_FLOAT_VEC4));
 	}
-	void MaterialRes::MaterialParameterSet::SetParameter(const String& name, const Colori& color)
+	void MaterialRes::MaterialParameterSet::SetParameter(const String &name, const Colori &color)
 	{
-		if(Contains(name))
-			memcpy(Find(name)->parameterData.data(), &color, sizeof(Colori));
-		else	
+		auto it = find(name);
+		if (it != end())
+			memcpy(it->second.parameterData.data(), &color, sizeof(Colori));
+		else
 			Add(name, MaterialParameter::Create(Color(color), GL_FLOAT_VEC4));
 	}
-	void MaterialRes::MaterialParameterSet::SetParameter(const String& name, const Vector2& vec2)
+	void MaterialRes::MaterialParameterSet::SetParameter(const String &name, const Vector2 &vec2)
 	{
-		if(Contains(name))
-			memcpy(Find(name)->parameterData.data(), &vec2, sizeof(Vector2));
-		else	
+		auto it = find(name);
+		if (it != end())
+			memcpy(it->second.parameterData.data(), &vec2, sizeof(Vector2));
+		else
 			Add(name, MaterialParameter::Create(vec2, GL_FLOAT_VEC2));
 	}
-	void MaterialRes::MaterialParameterSet::SetParameter(const String& name, const Vector3& vec3)
+	void MaterialRes::MaterialParameterSet::SetParameter(const String &name, const Vector3 &vec3)
 	{
-		if(Contains(name))
-			memcpy(Find(name)->parameterData.data(), &vec3, sizeof(Vector3));
-		else	
+		auto it = find(name);
+		if (it != end())
+			memcpy(it->second.parameterData.data(), &vec3, sizeof(Vector3));
+		else
 			Add(name, MaterialParameter::Create(vec3, GL_FLOAT_VEC3));
 	}
-	void MaterialRes::MaterialParameterSet::SetParameter(const String& name, const Transform& tf)
+	void MaterialRes::MaterialParameterSet::SetParameter(const String &name, const Transform &tf)
 	{
-		if(Contains(name))
-			memcpy(Find(name)->parameterData.data(), &tf, sizeof(Transform));
-		else	
+		auto it = find(name);
+		if (it != end())
+			memcpy(it->second.parameterData.data(), &tf, sizeof(Transform));
+		else
 			Add(name, MaterialParameter::Create(tf, GL_FLOAT_MAT4));
 	}
-	void MaterialRes::MaterialParameterSet::SetParameter(const String& name, Ref<class TextureRes> tex)
+	void MaterialRes::MaterialParameterSet::SetParameter(const String &name, Ref<class TextureRes> tex)
 	{
-		if(Contains(name))
-			memcpy(Find(name)->parameterData.data(), &tex, sizeof(Ref<class TextureRes>));
-		else	
+		auto it = find(name);
+		if (it != end())
+			memcpy(it->second.parameterData.data(), &tex, sizeof(Ref<class TextureRes>));
+		else
 			Add(name, MaterialParameter::Create(tex, GL_SAMPLER_2D));
 	}
-	void MaterialRes::MaterialParameterSet::SetParameter(const String& name, const Vector2i& vec2)
+	void MaterialRes::MaterialParameterSet::SetParameter(const String &name, const Vector2i &vec2)
 	{
-		if(Contains(name))
-			memcpy(Find(name)->parameterData.data(), &vec2, sizeof(Vector2i));
-		else	
+		auto it = find(name);
+		if (it != end())
+			memcpy(it->second.parameterData.data(), &vec2, sizeof(Vector2i));
+		else
 			Add(name, MaterialParameter::Create(vec2, GL_INT_VEC2));
 	}
-}
+} // namespace Graphics
