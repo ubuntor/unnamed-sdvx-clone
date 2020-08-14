@@ -175,7 +175,7 @@ void AudioStreamBase::Process(float* out, uint32 numSamples)
 		if(DecodeData_Internal() <= 0)
 		{
 			// Ended
-			Log("Audio stream ended", Logger::Info);
+			Log("Audio stream ended", Logger::Severity::Info);
 			m_ended = true;
 			m_playing = false;
 			break;
@@ -190,12 +190,12 @@ void AudioStreamBase::Process(float* out, uint32 numSamples)
 
 	if(m_samplePos > 0)
 	{
-		if(m_samplePos >= m_samplesTotal)
+		if((uint64)m_samplePos >= m_samplesTotal)
 		{
 			if(!m_ended)
 			{
 				// Ended
-				Log("Audio stream ended", Logger::Info);
+				Log("Audio stream ended", Logger::Severity::Info);
 				m_ended = true;
 			}
 		}
@@ -207,7 +207,7 @@ void AudioStreamBase::Process(float* out, uint32 numSamples)
 		double avgDelta = m_deltaSum / (double)m_deltaSamples;
 		if(abs(timingDelta - avgDelta) > 0.2)
 		{
-			Logf("Timing restart, delta = %f", Logger::Info, avgDelta);
+			Logf("Timing restart, delta = %f", Logger::Severity::Info, avgDelta);
 			m_restartTiming();
 		}
 		else

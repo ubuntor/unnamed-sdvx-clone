@@ -29,7 +29,7 @@ private:
 	bool m_autoButtons;
 	bool m_startPressed;
 	bool m_showStats;
-	uint8 m_badge;
+	ClearMark m_badge;
 	uint32 m_score;
 	uint32 m_maxCombo;
 	uint32 m_categorizedHits[3];
@@ -37,8 +37,11 @@ private:
 	float* m_gaugeSamples;
 	String m_jacketPath;
 	uint32 m_timedHits[2];
-	float m_meanHitDelta;
-	MapTime m_medianHitDelta;
+
+	//0 = normal, 1 = absolute
+	float m_meanHitDelta[2] = {0.f, 0.f};
+	MapTime m_medianHitDelta[2] = {0, 0};
+
 	ScoreIndex m_scoredata;
 	bool m_restored = false;
 	bool m_removed = false;
@@ -52,6 +55,10 @@ private:
 	Vector<nlohmann::json> const* m_stats;
 	int m_numPlayersSeen = 0;
 
+	String m_mission = "";
+	int m_retryCount = 0;
+	float m_playbackSpeed = 1.0f;
+
 	Vector<ScoreIndex*> m_highScores;
 	Vector<SimpleHitStat> m_simpleHitStats;
 
@@ -62,7 +69,7 @@ private:
 	CollectionDialog m_collDiag;
 	ChartIndex* m_chartIndex;
 
-	void m_PushStringToTable(const char* name, String data)
+	void m_PushStringToTable(const char* name, const String& data)
 	{
 		lua_pushstring(m_lua, name);
 		lua_pushstring(m_lua, data.c_str());
@@ -112,11 +119,11 @@ private:
 
 			m_displayIndex += (button == Input::Button::FX_0) ? -1 : 1;
 
-			if (m_displayIndex >= m_stats->size())
+			if (m_displayIndex >= (int)m_stats->size())
 				m_displayIndex = 0;
 
 			if (m_displayIndex < 0)
-				m_displayIndex = m_stats->size() - 1;
+				m_displayIndex = (int)m_stats->size() - 1;
 
 			loadScoresFromMultiplayer();
 			updateLuaData();
@@ -144,17 +151,25 @@ public:
 		m_scoredata.miss = m_categorizedHits[0];
 		m_scoredata.gauge = m_finalGaugeValue;
 		m_scoredata.gameflags = (uint32)m_flags;
-		if (game->GetManualExit())
+		if (!game->IsStorableScore())
 		{
-			m_badge = 0;
+			m_badge = ClearMark::NotPlayed;
 		}
 		else
 		{
 			m_badge = Scoring::CalculateBadge(m_scoredata);
 		}
 
-		m_meanHitDelta = scoring.GetMeanHitDelta();
-		m_medianHitDelta = scoring.GetMedianHitDelta();
+		m_playbackSpeed = game->GetPlaybackSpeed();
+
+		m_retryCount = game->GetRetryCount();
+		m_mission = game->GetMissionStr();
+
+		m_meanHitDelta[0] = scoring.GetMeanHitDelta();
+		m_medianHitDelta[0] = scoring.GetMedianHitDelta();
+
+		m_meanHitDelta[1] = scoring.GetMeanHitDelta(true);
+		m_medianHitDelta[1] = scoring.GetMedianHitDelta(true);
 
 		// Make texture for performance graph samples
 		m_graphTex = TextureRes::Create(g_gl);
@@ -169,7 +184,7 @@ public:
 	}
 
 	void loadScoresFromMultiplayer() {
-		if (m_displayIndex >= m_stats->size())
+		if (m_displayIndex >= (int)m_stats->size())
 			return;
 
 		const nlohmann::json& data= (*m_stats)[m_displayIndex];
@@ -192,10 +207,10 @@ public:
 		m_scoredata.gauge = m_finalGaugeValue;
 
 		m_scoredata.gameflags = data["flags"];
-		m_badge = data["clear"];
+		m_badge = static_cast<ClearMark>(data["clear"]);
 
-		m_meanHitDelta = data["mean_delta"];
-		m_medianHitDelta = data["median_delta"];
+		m_meanHitDelta[0] = data["mean_delta"];
+		m_medianHitDelta[0] = data["median_delta"];
 
 		m_playerName = static_cast<String>(data.value("name",""));
 
@@ -243,7 +258,7 @@ public:
 			m_playerId = uid;
 
 			// Show the player's score first
-			for (int i=0; i<m_stats->size(); i++)
+			for (size_t i=0; i<m_stats->size(); i++)
 			{
 				if (m_playerId == (*m_stats)[i].value("uid", ""))
 				{
@@ -290,7 +305,7 @@ public:
 
 		// Don't save the score if autoplay was on or if the song was launched using command line
 		// also don't save the score if the song was manually exited
-		if (!m_autoplay && !m_autoButtons && game->GetChartIndex() && !game->GetManualExit())
+		if (!m_autoplay && !m_autoButtons && game->GetChartIndex() && game->IsStorableScore())
 		{
 			ScoreIndex* newScore = new ScoreIndex();
 			auto chart = game->GetChartIndex();
@@ -318,7 +333,7 @@ public:
 			}
 			else 
 			{
-				Log("Couldn't open the chart file for hashing, using existing hash.", Logger::Warning);
+				Log("Couldn't open the chart file for hashing, using existing hash.", Logger::Severity::Warning);
 			}
 
 			Path::CreateDir(Path::Absolute("replays/" + hash));
@@ -399,12 +414,14 @@ public:
 		m_PushStringToTable("effector", m_beatmapSettings.effector);
 		m_PushStringToTable("bpm", m_beatmapSettings.bpm);
 		m_PushStringToTable("jacketPath", m_jacketPath);
-		m_PushIntToTable("medianHitDelta", m_medianHitDelta);
-		m_PushFloatToTable("meanHitDelta", m_meanHitDelta);
+		m_PushIntToTable("medianHitDelta", m_medianHitDelta[0]);
+		m_PushFloatToTable("meanHitDelta", m_meanHitDelta[0]);
+		m_PushIntToTable("medianHitDeltaAbs", m_medianHitDelta[1]);
+		m_PushFloatToTable("meanHitDeltaAbs", m_meanHitDelta[1]);
 		m_PushIntToTable("earlies", m_timedHits[0]);
 		m_PushIntToTable("lates", m_timedHits[1]);
-		m_PushStringToTable("grade", Scoring::CalculateGrade(m_score).c_str());
-		m_PushIntToTable("badge", m_badge);
+		m_PushStringToTable("grade", ToDisplayString(ToGradeMark(m_score)));
+		m_PushIntToTable("badge", static_cast<int>(m_badge));
 
 		if (m_multiplayer)
 		{
@@ -415,6 +432,14 @@ public:
 		lua_pushstring(m_lua, "autoplay");
 		lua_pushboolean(m_lua, m_autoplay);
 		lua_settable(m_lua, -3);
+
+		m_PushFloatToTable("playbackSpeed", m_playbackSpeed);
+
+		if (g_gameConfig.GetBool(GameConfigKeys::DisplayPracticeInfoInResult))
+		{
+			m_PushStringToTable("mission", m_mission);
+			m_PushIntToTable("retryCount", m_retryCount);
+		}
 
 		//Push gauge samples
 		lua_pushstring(m_lua, "gaugeSamples");
@@ -467,7 +492,7 @@ public:
 				m_PushIntToTable("goods", score->almost);
 				m_PushIntToTable("misses", score->miss);
 				m_PushIntToTable("timestamp", score->timestamp);
-				m_PushIntToTable("badge", Scoring::CalculateBadge(*score));
+				m_PushIntToTable("badge", static_cast<int>(Scoring::CalculateBadge(*score)));
 				lua_settable(m_lua, -3);
 			}
 			lua_settable(m_lua, -3);
@@ -482,7 +507,7 @@ public:
 		{
 			if (lua_pcall(m_lua, 0, 0, 0) != 0)
 			{
-				Logf("Lua error: %s", Logger::Error, lua_tostring(m_lua, -1));
+				Logf("Lua error: %s", Logger::Severity::Error, lua_tostring(m_lua, -1));
 				g_gameWindow->ShowMessageBox("Lua Error", lua_tostring(m_lua, -1), 0);
 			}
 		}
@@ -535,7 +560,7 @@ public:
 			{
 				if (lua_pcall(m_lua, 0, 0, 0) != 0)
 				{
-					Logf("Lua error: %s", Logger::Error, lua_tostring(m_lua, -1));
+					Logf("Lua error: %s", Logger::Severity::Error, lua_tostring(m_lua, -1));
 					g_gameWindow->ShowMessageBox("Lua Error", lua_tostring(m_lua, -1), 0);
 				}
 			}
@@ -552,7 +577,7 @@ public:
 		lua_pushboolean(m_lua, m_showStats);
 		if (lua_pcall(m_lua, 2, 0, 0) != 0)
 		{
-			Logf("Lua error: %s", Logger::Error, lua_tostring(m_lua, -1));
+			Logf("Lua error: %s", Logger::Severity::Error, lua_tostring(m_lua, -1));
 			g_gameWindow->ShowMessageBox("Lua Error", lua_tostring(m_lua, -1), 0);
 			assert(false);
 		}
@@ -572,7 +597,7 @@ public:
 			AutoScoreScreenshotSettings screensetting = g_gameConfig.GetEnum<Enum_AutoScoreScreenshotSettings>(GameConfigKeys::AutoScoreScreenshot);
 			if (screensetting == AutoScoreScreenshotSettings::Always ||
 				(screensetting == AutoScoreScreenshotSettings::Highscore && m_highScores.empty()) ||
-				(screensetting == AutoScoreScreenshotSettings::Highscore && m_score > m_highScores.front()->score))
+				(screensetting == AutoScoreScreenshotSettings::Highscore && m_score > (uint32)m_highScores.front()->score))
 			{
 				Capture();
 			}
@@ -585,10 +610,10 @@ public:
 		m_showStats = g_input.GetButton(Input::Button::FX_0);
 
 		// Check for new scores
-		if (m_multiplayer && m_numPlayersSeen != m_stats->size())
+		if (m_multiplayer && m_numPlayersSeen != (int)m_stats->size())
 		{
 			// Reselect the player we were looking at before
-			for (int i = 0; i < m_stats->size(); i++)
+			for (size_t i = 0; i < m_stats->size(); i++)
 			{
 				if (m_displayId == static_cast<String>((*m_stats)[i].value("uid", "")))
 				{
@@ -634,7 +659,7 @@ public:
 		{
 			if (lua_pcall(m_lua, 0, 4, 0) != 0)
 			{
-				Logf("Lua error: %s", Logger::Error, lua_tostring(m_lua, -1));
+				Logf("Lua error: %s", Logger::Severity::Error, lua_tostring(m_lua, -1));
 				g_gameWindow->ShowMessageBox("Lua Error", lua_tostring(m_lua, -1), 0);
 			}
 			h = luaPopInt();
@@ -666,8 +691,15 @@ public:
 		Vector2i size(w, h);
 		Image screenshot = ImageRes::Screenshot(g_gl, size, { x,y });
 		String screenshotPath = "screenshots/" + Shared::Time::Now().ToString() + ".png";
-		screenshot->SavePNG(screenshotPath);
-		screenshot.Release();
+		if (screenshot.get() != nullptr)
+		{
+			screenshot->SavePNG(screenshotPath);
+			screenshot.reset();
+		}
+		else 
+		{
+			screenshotPath = "Failed to capture screenshot";
+		}
 
 		lua_getglobal(m_lua, "screenshot_captured");
 		if (lua_isfunction(m_lua, -1))

@@ -21,7 +21,7 @@ Test("Audio.Playback")
 	TestEnsure(audio->Init(false));
 
 	Sample testSample = audio->CreateSample(testSamplePath);
-	TestEnsure(testSample.IsValid());
+	TestEnsure(testSample);
 
 	testSample->SetVolume(1.0f);
 
@@ -35,7 +35,7 @@ Test("Audio.Playback")
 		t.Restart();
 		if(time > 3.0f)
 		{
-			Log("Playing sample", Logger::Info);
+			Log("Playing sample", Logger::Severity::Info);
 			testSample->Play();
 			time = 0.0;
 		}

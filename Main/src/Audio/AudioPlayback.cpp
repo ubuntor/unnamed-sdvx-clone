@@ -36,13 +36,13 @@ bool AudioPlayback::Init(class BeatmapPlayback& playback, const String& mapRootP
 	audioPath.TrimBack(' ');
 	if(!Path::FileExists(audioPath))
 	{
-		Logf("Audio file for beatmap does not exists at: \"%s\"", Logger::Error, audioPath);
+		Logf("Audio file for beatmap does not exists at: \"%s\"", Logger::Severity::Error, audioPath);
 		return false;
 	}
 	m_music = g_audio->CreateStream(audioPath, true);
 	if(!m_music)
 	{
-		Logf("Failed to load any audio for beatmap \"%s\"", Logger::Error, audioPath);
+		Logf("Failed to load any audio for beatmap \"%s\"", Logger::Severity::Error, audioPath);
 		return false;
 	}
 
@@ -56,7 +56,7 @@ bool AudioPlayback::Init(class BeatmapPlayback& playback, const String& mapRootP
 	{
 		if(!Path::FileExists(audioPath) || Path::IsDirectory(audioPath))
 		{
-			Logf("FX audio for for beatmap does not exists at: \"%s\" Using real-time effects instead.", Logger::Warning, audioPath);
+			Logf("FX audio for for beatmap does not exists at: \"%s\" Using real-time effects instead.", Logger::Severity::Warning, audioPath);
 		}
 		else
 		{
@@ -69,7 +69,7 @@ bool AudioPlayback::Init(class BeatmapPlayback& playback, const String& mapRootP
 		}
 	}
 	
-	if (m_fxtrack.IsValid()) {
+	if (m_fxtrack) {
 		// Prevent loading switchables if fx track is in use.
 		return true;
 	}
@@ -86,7 +86,7 @@ bool AudioPlayback::Init(class BeatmapPlayback& playback, const String& mapRootP
 		if (!audioPath.empty()) {
 			if (!Path::FileExists(audioPath))
 			{
-				Logf("Audio for a SwitchAudio effect does not exists at: \"%s\"", Logger::Warning, audioPath);
+				Logf("Audio for a SwitchAudio effect does not exists at: \"%s\"", Logger::Severity::Warning, audioPath);
 			}
 			else
 			{
@@ -115,6 +115,8 @@ void AudioPlayback::Play()
 	for (auto it = m_switchables.begin(); it != m_switchables.end(); ++it)
 		if (it->m_audio)
 			it->m_audio->Play();
+
+	m_paused = false;
 }
 void AudioPlayback::Advance(MapTime ms)
 {
@@ -135,25 +137,22 @@ void AudioPlayback::SetPosition(MapTime time)
 }
 void AudioPlayback::TogglePause()
 {
-	if(m_paused)
-	{
-		m_music->Play();
-		if(m_fxtrack)
-			m_fxtrack->Play();
-		for (auto it = m_switchables.begin(); it != m_switchables.end(); ++it)
-			if (it->m_audio)
-				it->m_audio->Play();
-	}
-	else
-	{
-		m_music->Pause();
-		if(m_fxtrack)
-			m_fxtrack->Pause();
-		for (auto it = m_switchables.begin(); it != m_switchables.end(); ++it)
-			if (it->m_audio)
-				it->m_audio->Pause();
-	}
-	m_paused = !m_paused;
+	if(m_paused) Play();
+	else Pause();
+}
+void AudioPlayback::Pause()
+{
+	if (m_paused)
+		return;
+
+	m_music->Pause();
+	if (m_fxtrack)
+		m_fxtrack->Pause();
+	for (auto it = m_switchables.begin(); it != m_switchables.end(); ++it)
+		if (it->m_audio)
+			it->m_audio->Pause();
+
+	m_paused = true;
 }
 bool AudioPlayback::HasEnded() const
 {
@@ -162,10 +161,10 @@ bool AudioPlayback::HasEnded() const
 void AudioPlayback::SetEffect(uint32 index, HoldObjectState* object, class BeatmapPlayback& playback)
 {
 	// Don't use effects when using an FX track
-	if(m_fxtrack.IsValid())
+	if(m_fxtrack)
 		return;
 
-	assert(index >= 0 && index <= 1);
+	assert(index <= 1);
 	m_CleanupDSP(m_buttonDSPs[index]);
 	m_currentHoldEffects[index] = object;
 
@@ -182,7 +181,8 @@ void AudioPlayback::SetEffect(uint32 index, HoldObjectState* object, class Beatm
 	if (m_buttonEffects[index].type == EffectType::SwitchAudio)
 		return;
 
-	dsp = m_buttonEffects[index].CreateDSP(m_GetDSPTrack().GetData(), *this);
+	dsp = m_buttonEffects[index].CreateDSP(m_GetDSPTrack().get(), *this);
+	Logf("Set effect: %s", Logger::Severity::Debug, dsp->GetName());
 
 	if(dsp)
 	{
@@ -196,7 +196,7 @@ void AudioPlayback::SetEffect(uint32 index, HoldObjectState* object, class Beatm
 }
 void AudioPlayback::SetEffectEnabled(uint32 index, bool enabled)
 {
-	assert(index >= 0 && index <= 1);
+	assert(index <= 1);
 	m_effectMix[index] = enabled ? 1.0f : 0.0f;
 	
 	if (m_buttonEffects[index].type == EffectType::SwitchAudio) {
@@ -211,7 +211,7 @@ void AudioPlayback::SetEffectEnabled(uint32 index, bool enabled)
 }
 void AudioPlayback::ClearEffect(uint32 index, HoldObjectState* object)
 {
-	assert(index >= 0 && index <= 1);
+	assert(index <= 1);
 	if(m_currentHoldEffects[index] == object)
 	{
 		m_CleanupDSP(m_buttonDSPs[index]);
@@ -248,13 +248,13 @@ void AudioPlayback::SetLaserFilterInput(float input, bool active)
 		if(!m_laserDSP)
 		{
 			// Don't use Bitcrush effects over FX track
-			if(m_fxtrack.IsValid() && m_laserEffectType == EffectType::Bitcrush)
+			if(m_fxtrack && m_laserEffectType == EffectType::Bitcrush)
 				return;
 
-			m_laserDSP = m_laserEffect.CreateDSP(m_GetDSPTrack().GetData(), *this);
+			m_laserDSP = m_laserEffect.CreateDSP(m_GetDSPTrack().get(), *this);
 			if(!m_laserDSP)
 			{
-				Logf("Failed to create laser DSP with type %d", Logger::Warning, m_laserEffect.type);
+				Logf("Failed to create laser DSP with type %d", Logger::Severity::Warning, m_laserEffect.type);
 				return;
 			}
 		}
@@ -286,8 +286,7 @@ float AudioPlayback::GetLaserEffectMix() const
 }
 Ref<AudioStream> AudioPlayback::m_GetDSPTrack()
 {
-    if(m_fxtrack)
-        return m_fxtrack;
+    if(m_fxtrack) return m_fxtrack;
 	return m_music;
 }
 void AudioPlayback::SetFXTrackEnabled(bool enabled)
@@ -309,12 +308,12 @@ void AudioPlayback::SetFXTrackEnabled(bool enabled)
 	}
 	m_fxtrackEnabled = enabled;
 }
-void AudioPlayback::SetSwitchableTrackEnabled(int index, bool enabled)
+void AudioPlayback::SetSwitchableTrackEnabled(size_t index, bool enabled)
 {
-	if (m_fxtrack.IsValid())
+	if (m_fxtrack)
 		return;
 
-	assert(index >= 0 && index < m_switchables.size());
+	assert(index < m_switchables.size());
 
 	int32 disableTrack = -1;
 	int32 enableTrack = -1;
@@ -345,7 +344,7 @@ void AudioPlayback::SetSwitchableTrackEnabled(int index, bool enabled)
 }
 
 void AudioPlayback::ResetSwitchableTracks() {
-	for (int i = 0; i < m_switchables.size(); ++i)
+	for (size_t i = 0; i < m_switchables.size(); ++i)
 	{
 		if (m_switchables[i].m_audio)
 			m_switchables[i].m_audio->SetVolume(0.0f);
@@ -471,6 +470,8 @@ void AudioPlayback::m_SetLaserEffectParameter(float input)
 		rt->SetLength(actualLength);
 		break;
 	}
+	default:
+	break;
 	}
 }
 

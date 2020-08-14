@@ -20,7 +20,6 @@ jobs:
                 {
                 git clone https://github.com/microsoft/vcpkg.git
                 cd vcpkg
-                echo "set(VCPKG_BUILD_TYPE release)" >> triplets/x64-windows.cmake
                 .\bootstrap-vcpkg.bat
                 .\vcpkg.exe integrate install
                 .\vcpkg.exe install '@${{ github.workspace }}/build.windows'
@@ -33,6 +32,8 @@ jobs:
               run: msbuild USC.sln -p:Configuration=Release /m /verbosity:minimal
             - name: Tests
               run: rm ./bin/Tests.*
+            - name: Post Build Stuff
+              run: cp ./bin/libiconv.dll ./bin/libiconv-2.dll
             - name: Upload artifact
               uses: actions/upload-artifact@master
               with:
@@ -41,7 +42,7 @@ jobs:
             - name: Trigger artifact distribution
               continue-on-error: true
               run: |
-                Invoke-RestMethod -Method POST -ContentType "application/json" -Body '{ "id": ${{ github.run_id }}, "branch": "${{github.ref}}", "commit": "${{github.sha}}" }' -Uri ${{ secrets.WEBHOOK_URL }}
+                Invoke-RestMethod -Method POST -ContentType "application/json" -Body '{ "id": ${{ github.run_id }}}' -Uri ${{ secrets.WEBHOOK_URL }}
     linux_build:
         name: Linux build
         runs-on: ubuntu-latest
@@ -87,3 +88,8 @@ jobs:
               run: cmake . -DLibArchive_LIBRARY=/usr/local/opt/libarchive/lib/libarchive.dylib -DLibArchive_INCLUDE_DIR=/usr/local/opt/libarchive/include -DCMAKE_BUILD_TYPE=Release
             - name: make
               run: make
+            - name: Upload artifact
+              uses: actions/upload-artifact@master
+              with:
+                name: Game_mac
+                path: bin

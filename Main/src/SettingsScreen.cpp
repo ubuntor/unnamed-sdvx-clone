@@ -64,8 +64,7 @@ static void nk_sdl_text(nk_flags event)
 
 static int nk_get_property_state(struct nk_context *ctx, const char *name)
 {
-    if (!ctx || !ctx->current || !ctx->current->layout)
-        return NK_PROPERTY_DEFAULT;
+    if (!ctx || !ctx->current || !ctx->current->layout) return NK_PROPERTY_DEFAULT;
 	struct nk_window* win = ctx->current;
 	nk_hash hash = 0;
     if (name[0] == '#') {
@@ -443,22 +442,22 @@ public:
 			nk_sdl_font_stash_begin(&atlas);
 			struct nk_font *fallback = nk_font_atlas_add_from_file(atlas, Path::Normalize( Path::Absolute("fonts/settings/NotoSans-Regular.ttf")).c_str(), 24, 0);
 
-			struct nk_font_config cfg_kr = nk_font_config(24);
-			cfg_kr.merge_mode = nk_true;
-			cfg_kr.range = nk_font_korean_glyph_ranges();
+			// struct nk_font_config cfg_kr = nk_font_config(24);
+			// cfg_kr.merge_mode = nk_true;
+			// cfg_kr.range = nk_font_korean_glyph_ranges();
 
-			NK_STORAGE const nk_rune jp_ranges[] = {
-				0x0020, 0x00FF,
-				0x3000, 0x303f,
-				0x3040, 0x309f,
-				0x30a0, 0x30ff,
-				0x4e00, 0x9faf,
-				0xff00, 0xffef,
-				0
-			};
-			struct nk_font_config cfg_jp = nk_font_config(24);
-			cfg_jp.merge_mode = nk_true;
-			cfg_jp.range = jp_ranges;
+			// NK_STORAGE const nk_rune jp_ranges[] = {
+			// 	0x0020, 0x00FF,
+			// 	0x3000, 0x303f,
+			// 	0x3040, 0x309f,
+			// 	0x30a0, 0x30ff,
+			// 	0x4e00, 0x9faf,
+			// 	0xff00, 0xffef,
+			// 	0
+			// };
+			// struct nk_font_config cfg_jp = nk_font_config(24);
+			// cfg_jp.merge_mode = nk_true;
+			// cfg_jp.range = jp_ranges;
 
 			NK_STORAGE const nk_rune cjk_ranges[] = {
 				0x0020, 0x00FF,
@@ -480,7 +479,7 @@ public:
 			//nk_font_atlas_add_from_file(atlas, Path::Normalize("fonts/settings/mplus-1m-medium.ttf").c_str(), 24, &cfg_jp);
 			int maxSize;
 			glGetIntegerv(GL_MAX_TEXTURE_SIZE, &maxSize);
-			Logf("System max texture size: %d", Logger::Info, maxSize);
+			Logf("System max texture size: %d", Logger::Severity::Info, maxSize);
 			if (maxSize >= FULL_FONT_TEXTURE_HEIGHT && !g_gameConfig.GetBool(GameConfigKeys::LimitSettingsFont))
 			{
 				nk_font_atlas_add_from_file(atlas, Path::Normalize(Path::Absolute("fonts/settings/DroidSansFallback.ttf")).c_str(), 24, &cfg_cjk);
@@ -589,6 +588,7 @@ public:
 		{
 			RenderSettingsInput();
 			RenderSettingsGame();
+			RenderSettingsDisplay();
 			RenderSettingsSystem();
 			RenderSettingsOnline();
 
@@ -698,7 +698,7 @@ public:
 				IntSetting(GameConfigKeys::RestartPlayHoldDuration, "Restart Hold Duration (ms):", 250, 10000, 250);
 			}
 
-			EnumSetting<Enum_AbortMethod>(GameConfigKeys::ExitPlayMethod, "Exit gameplay with:");
+			EnumSetting<Enum_AbortMethod>(GameConfigKeys::ExitPlayMethod, "Exit gameplay with Back:");
 			if (g_gameConfig.GetEnum<Enum_AbortMethod>(GameConfigKeys::ExitPlayMethod) == AbortMethod::Hold)
 			{
 				IntSetting(GameConfigKeys::ExitPlayHoldDuration, "Exit Hold Duration (ms):", 250, 10000, 250);
@@ -732,6 +732,29 @@ public:
 			FloatSetting(GameConfigKeys::ModSpeed, "ModSpeed", 50, 1500, 0.5f);
 			ToggleSetting(GameConfigKeys::AutoSaveSpeed, "Save hispeed changes during gameplay");
 
+			IntSetting(GameConfigKeys::LeadInTime, "Lead-in time (ms)", 250, 10000, 250);
+			IntSetting(GameConfigKeys::PracticeLeadInTime, "(for practice mode)", 250, 10000, 250);
+
+			ToggleSetting(GameConfigKeys::PracticeSetupNavEnabled, "Enable navigation inputs for the practice setup");
+			ToggleSetting(GameConfigKeys::RevertToSetupAfterScoreScreen, "Revert to the practice setup after the score screen is shown");
+
+			ToggleSetting(GameConfigKeys::SkipScore, "Skip score screen on manual exit");
+			EnumSetting<Enum_AutoScoreScreenshotSettings>(GameConfigKeys::AutoScoreScreenshot, "Automatically capture score screenshots:");
+
+			nk_label(m_nctx, "Songs folder path:", nk_text_alignment::NK_TEXT_LEFT);
+			nk_sdl_text(nk_edit_string(m_nctx, NK_EDIT_FIELD, m_songsPath, &m_pathlen, 1024, nk_filter_default));
+
+			ToggleSetting(GameConfigKeys::TransferScoresOnChartUpdate, "Transfer scores on chart change");
+
+			nk_tree_pop(m_nctx);
+		}
+	}
+
+	// Display settings
+	void RenderSettingsDisplay()
+	{
+		if (nk_tree_push(m_nctx, NK_TREE_NODE, "Display", NK_MINIMIZED))
+		{
 			nk_layout_row_dynamic(m_nctx, 75, 2);
 			if (nk_group_begin(m_nctx, "Hidden", NK_WINDOW_NO_SCROLLBAR))
 			{
@@ -751,11 +774,6 @@ public:
 			ToggleSetting(GameConfigKeys::DisableBackgrounds, "Disable Song Backgrounds");
 			FloatSetting(GameConfigKeys::DistantButtonScale, "Distant Button Scale", 1.0f, 5.0f);
 			ToggleSetting(GameConfigKeys::ShowCover, "Show Track Cover");
-			ToggleSetting(GameConfigKeys::SkipScore, "Skip score screen on manual exit");
-			EnumSetting<Enum_AutoScoreScreenshotSettings>(GameConfigKeys::AutoScoreScreenshot, "Automatically capture score screenshots:");
-
-			nk_label(m_nctx, "Songs folder path:", nk_text_alignment::NK_TEXT_LEFT);
-			nk_sdl_text(nk_edit_string(m_nctx, NK_EDIT_FIELD, m_songsPath, &m_pathlen, 1024, nk_filter_default));
 
 			if (m_skins.size() > 0)
 			{
@@ -766,10 +784,12 @@ public:
 				}
 			}
 
+			EnumSetting<Enum_ScoreDisplayModes>(GameConfigKeys::ScoreDisplayMode, "In-game score display is:");
+
 			RenderSettingsLaserColor();
 
-			FloatSetting(GameConfigKeys::RollIgnoreDuration, "Roll Ignore Duration (ms)", 0, 100, 1);
-			FloatSetting(GameConfigKeys::LaserSlamLength, "Laser Slam Duration (ms)", 0, 100, 1);
+			ToggleSetting(GameConfigKeys::DisplayPracticeInfoInGame, "Show practice info during gameplay");
+			ToggleSetting(GameConfigKeys::DisplayPracticeInfoInResult, "Show practice info on the result");
 
 			nk_tree_pop(m_nctx);
 		}
@@ -850,6 +870,8 @@ public:
 			ToggleSetting(GameConfigKeys::CheckForUpdates, "Check for updates on startup");
 			ToggleSetting(GameConfigKeys::OnlyRelease, "Only check for new release versions");
 
+			EnumSetting<Logger::Enum_Severity>(GameConfigKeys::LogLevel, "Logging level");
+
 			nk_tree_pop(m_nctx);
 		}
 	}
@@ -923,7 +945,7 @@ public:
 			m_gamepad = g_gameWindow->OpenGamepad(m_gamepadIndex);
 			if (!m_gamepad)
 			{
-				Logf("Failed to open gamepad: %s", Logger::Error, m_gamepadIndex);
+				Logf("Failed to open gamepad: %s", Logger::Severity::Error, m_gamepadIndex);
 				g_gameWindow->ShowMessageBox("Warning", "Could not open selected gamepad.\nEnsure the controller is connected and in the correct mode (if applicable) and selected in the previous menu.", 1);
 				return false;
 			}
@@ -962,7 +984,7 @@ public:
 		if (m_completed && m_gamepad)
 		{
 			m_gamepad->OnButtonPressed.RemoveAll(this);
-			m_gamepad.Release();
+			m_gamepad.reset();
 
 			g_application->RemoveTickable(this);
 		}
@@ -1192,7 +1214,7 @@ bool SkinSettingsScreen::StringSelectionSetting(String key, String label, SkinSe
 		selection = 0;
 	auto prevSelection = selection;
 	Vector<const char*> displayData;
-	for (size_t i = 0; i < setting.selectionSetting.numOptions; i++)
+	for (int i = 0; i < setting.selectionSetting.numOptions; i++)
 	{
 		displayData.Add(*setting.selectionSetting.options[i]);
 	}

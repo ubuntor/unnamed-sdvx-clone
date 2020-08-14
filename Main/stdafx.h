@@ -23,6 +23,9 @@
 #include <memory.h>
 #include <cinttypes>
 
+#include <memory>
+#include <functional>
+
 // TODO: reference additional headers your program requires here
 #include <Shared/Shared.hpp>
 
@@ -40,5 +43,7 @@
 #include <Graphics/Font.hpp>
 using namespace Graphics;
 
+#include "BasicDefinitions.hpp"
+
 // Asset loading macro
-#define CheckedLoad(__stmt) if(!(__stmt)){Logf("Failed to load asset [%s]", Logger::Error, #__stmt); return false; }
+#define CheckedLoad(__stmt) if(!(__stmt)){Logf("Failed to load asset [%s]", Logger::Severity::Error, #__stmt); return false; }

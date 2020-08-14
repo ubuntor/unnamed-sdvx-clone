@@ -48,6 +48,8 @@ public:
 
 	// Pause the playback
 	void TogglePause();
+	void Pause();
+
 	bool IsPaused() const { return m_paused; }
 	bool HasEnded() const;
 
@@ -73,7 +75,7 @@ public:
 	void SetFXTrackEnabled(bool enabled);
 	
 	// Switch audio track
-	void SetSwitchableTrackEnabled(int index, bool enabled);
+	void SetSwitchableTrackEnabled(size_t index, bool enabled);
 	void ResetSwitchableTracks();
 
 	BeatmapPlayback& GetBeatmapPlayback();

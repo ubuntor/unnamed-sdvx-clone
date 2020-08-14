@@ -50,7 +50,7 @@ target_include_directories(usc-game PRIVATE
     ${INCROOT}/GUI
     ${INCROOT}/Audio
 )
-target_compile_features(usc-game PUBLIC cxx_std_14)
+target_compile_features(usc-game PUBLIC cxx_std_17)
 target_compile_definitions(usc-game PRIVATE VERSION_MINOR=${PROJECT_VERSION_MINOR})
 target_compile_definitions(usc-game PRIVATE VERSION_MAJOR=${PROJECT_VERSION_MAJOR})
 target_compile_definitions(usc-game PRIVATE VERSION_PATCH=${PROJECT_VERSION_PATCH})
@@ -62,6 +62,8 @@ set_output_postfixes(usc-game)
 if(MSVC)
     set_target_properties(usc-game PROPERTIES LINK_FLAGS "/SUBSYSTEM:WINDOWS")
     set_target_properties(usc-game PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}/bin")
+elseif(NOT APPLE)
+    target_compile_options(usc-game PUBLIC -Wall -Wextra -Werror -Wno-unused-variable -Wno-unused-parameter -Wno-unused-function)
 endif(MSVC)
 
 # Dependencies
