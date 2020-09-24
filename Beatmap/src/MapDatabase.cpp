@@ -78,7 +78,7 @@ public:
 	List<Event> m_pendingChanges;
 	mutex m_pendingChangesLock;
 
-	static const int32 m_version = 15;
+	static const int32 m_version = 16;
 
 public:
 	MapDatabase_Impl(MapDatabase& outer, bool transferScores) : m_outer(outer)
@@ -326,6 +326,18 @@ public:
 				")");
 				gotVersion = 15;
 			}
+			if (gotVersion == 15)
+			{
+				m_database.Exec("ALTER TABLE Scores ADD COLUMN window_perfect INTEGER");
+				m_database.Exec("ALTER TABLE Scores ADD COLUMN window_good INTEGER");
+				m_database.Exec("ALTER TABLE Scores ADD COLUMN window_hold INTEGER");
+				m_database.Exec("ALTER TABLE Scores ADD COLUMN window_miss INTEGER");
+				m_database.Exec("UPDATE Scores SET window_perfect=46");
+				m_database.Exec("UPDATE Scores SET window_good=92");
+				m_database.Exec("UPDATE Scores SET window_hold=138");
+				m_database.Exec("UPDATE Scores SET window_miss=250");
+				gotVersion = 16;
+			}
 			m_database.Exec(Utility::Sprintf("UPDATE Database SET `version`=%d WHERE `rowid`=1", m_version));
 
 			m_outer.OnDatabaseUpdateDone.Call();
@@ -445,10 +457,11 @@ public:
 
 	Map<int32, FolderIndex*> FindFoldersByPath(const String& searchString)
 	{
-		String stmt = "SELECT DISTINCT folderId FROM Charts WHERE path LIKE \"%" + searchString + "%\"";
+		String stmt = "SELECT DISTINCT folderId FROM Charts WHERE path LIKE ?";
+		DBStatement search = m_database.Query(stmt);
+		search.BindString(1, "%" + searchString + "%");
 
 		Map<int32, FolderIndex*> res;
-		DBStatement search = m_database.Query(stmt);
 		while(search.StepRow())
 		{
 			int32 id = search.IntColumn(0);
@@ -475,17 +488,28 @@ public:
 		{
 			if(i > 0)
 				stmt += " AND";
-			stmt += " (artist LIKE \"%" + term + "%\"" + 
-				" OR title LIKE \"%" + term + "%\"" +
-				" OR path LIKE \"%" + term + "%\"" +
-				" OR effector LIKE \"%" + term + "%\"" +
-				" OR artist_translit LIKE \"%" + term + "%\"" +
-				" OR title_translit LIKE \"%" + term + "%\")";
+			stmt += String(" (artist LIKE ?") +
+				" OR title LIKE ?" +
+				" OR path LIKE ?" +
+				" OR effector LIKE ?" +
+				" OR artist_translit LIKE ?" +
+				" OR title_translit LIKE ?)";
 			i++;
+		}
+		DBStatement search = m_database.Query(stmt);
+
+		i = 1;
+		for (auto term : terms)
+		{
+			// Bind all the terms
+			for (int j = 0; j < 6; j++)
+			{
+				search.BindString(i+j, "%" + term + "%");
+			}
+			i+=6;
 		}
 
 		Map<int32, FolderIndex*> res;
-		DBStatement search = m_database.Query(stmt);
 		while(search.StepRow())
 		{
 			int32 id = search.IntColumn(0);
@@ -567,10 +591,11 @@ public:
 
 	Map<int32, FolderIndex*> FindFoldersByCollection(const String& collection)
 	{
-		String stmt = Utility::Sprintf("SELECT folderid FROM Collections WHERE collection==\"%s\"", collection);
+		String stmt = "SELECT folderid FROM Collections WHERE collection==?";
+		DBStatement search = m_database.Query(stmt);
+		search.BindString(1, collection);
 
 		Map<int32, FolderIndex*> res;
-		DBStatement search = m_database.Query(stmt);
 		while (search.StepRow())
 		{
 			int32 id = search.IntColumn(0);
@@ -591,10 +616,12 @@ public:
 		csep[0] = Path::sep;
 		csep[1] = 0;
 		String sep(csep);
-		String stmt = "SELECT rowid FROM folders WHERE path LIKE \"%" + sep + folder + sep + "%\"";
+		String stmt = "SELECT rowid FROM folders WHERE path LIKE ?";
+		DBStatement search = m_database.Query(stmt);
+		search.BindString(1, "%" + sep + folder + sep + "%");
+
 
 		Map<int32, FolderIndex*> res;
-		DBStatement search = m_database.Query(stmt);
 		while (search.StepRow())
 		{
 			int32 id = search.IntColumn(0);
@@ -623,7 +650,7 @@ public:
 			"diff_name=?,diff_shortname=?,bpm=?,diff_index=?,level=?,hash=?,preview_file=?,preview_offset=?,preview_length=?,lwt=? WHERE rowid=?"); //TODO: update
 		DBStatement removeChart = m_database.Query("DELETE FROM Charts WHERE rowid=?");
 		DBStatement removeFolder = m_database.Query("DELETE FROM Folders WHERE rowid=?");
-		DBStatement scoreScan = m_database.Query("SELECT rowid,score,crit,near,miss,gauge,gameflags,replay,timestamp,user_name,user_id,local_score FROM Scores WHERE chart_hash=?");
+		DBStatement scoreScan = m_database.Query("SELECT rowid,score,crit,near,miss,gauge,gameflags,replay,timestamp,user_name,user_id,local_score,window_perfect,window_good,window_hold,window_miss FROM Scores WHERE chart_hash=?");
 		DBStatement moveScores = m_database.Query("UPDATE Scores set chart_hash=? where chart_hash=?");
 
 		Set<FolderIndex*> addedEvents;
@@ -707,6 +734,11 @@ public:
 					score->userName = scoreScan.StringColumn(9);
 					score->userId = scoreScan.StringColumn(10);
 					score->localScore = scoreScan.IntColumn(11);
+
+					score->hitWindowPerfect = scoreScan.IntColumn(12);
+					score->hitWindowGood = scoreScan.IntColumn(13);
+					score->hitWindowHold = scoreScan.IntColumn(14);
+					score->hitWindowMiss = scoreScan.IntColumn(15);
 
 					score->chartHash = chart->hash;
 					chart->scores.Add(score);
@@ -905,7 +937,7 @@ public:
 
 	void AddScore(ScoreIndex* score)
 	{
-		DBStatement addScore = m_database.Query("INSERT INTO Scores(score,crit,near,miss,gauge,gameflags,replay,timestamp,chart_hash,user_name,user_id,local_score) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)");
+		DBStatement addScore = m_database.Query("INSERT INTO Scores(score,crit,near,miss,gauge,gameflags,replay,timestamp,chart_hash,user_name,user_id,local_score,window_perfect,window_good,window_hold,window_miss) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
 
 		m_database.Exec("BEGIN");
 		addScore.BindInt(1, score->score);
@@ -920,6 +952,10 @@ public:
 		addScore.BindString(10, score->userName);
 		addScore.BindString(11, score->userId);
 		addScore.BindInt(12, score->localScore);
+		addScore.BindInt(13, score->hitWindowPerfect);
+		addScore.BindInt(14, score->hitWindowGood);
+		addScore.BindInt(15, score->hitWindowHold);
+		addScore.BindInt(16, score->hitWindowMiss);
 
 		addScore.Step();
 		addScore.Rewind();
@@ -943,12 +979,12 @@ public:
 			return;
 		}
 
-		constexpr char* addQuery = "INSERT INTO PracticeSetups("
+		const constexpr char* addQuery = "INSERT INTO PracticeSetups("
 			"chart_id, setup_title, loop_success, loop_fail, range_begin, range_end, fail_cond_type, fail_cond_value, "
 			"playback_speed, inc_speed_on_success, inc_speed, inc_streak, dec_speed_on_fail, dec_speed, min_playback_speed, max_rewind, max_rewind_measure"
 			") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
-		constexpr char* updateQuery = "UPDATE PracticeSetups SET "
+		const constexpr char* updateQuery = "UPDATE PracticeSetups SET "
 			"chart_id=?, setup_title=?, loop_success=?, loop_fail=?, range_begin=?, range_end=?, fail_cond_type=?, fail_cond_value=?, "
 			"playback_speed=?, inc_speed_on_success=?, inc_speed=?, inc_streak=?, dec_speed_on_fail=?, dec_speed=?, min_playback_speed=?, max_rewind=?, max_rewind_measure=?"
 			" WHERE rowid=?";
@@ -1011,6 +1047,7 @@ public:
 
 	void UpdateChartOffset(const ChartIndex* chart)
 	{
+		// Safe from sqli bc hash will be alphanum
 		m_database.Exec(Utility::Sprintf("UPDATE Charts SET custom_offset=%d WHERE hash LIKE '%s'", chart->custom_offset, *chart->hash));
 	}
 
@@ -1029,7 +1066,11 @@ public:
 
 		if (!result) //Failed to add, try to remove
 		{
-			m_database.Exec(Utility::Sprintf("DELETE FROM collections WHERE folderid==%d AND collection==\"%s\"", mapid, name));
+			DBStatement remColl = m_database.Query("DELETE FROM collections WHERE folderid==? AND collection==?");
+			remColl.BindInt(1, mapid);
+			remColl.BindString(2, name);
+			remColl.Step();
+			remColl.Rewind();
 		}
 	}
 
@@ -1132,6 +1173,10 @@ private:
 			"user_name TEXT,"
 			"user_id TEXT,"
 			"local_score INTEGER,"
+			"window_perfect INTEGER,"
+			"window_good INTEGER,"
+			"window_hold INTEGER,"
+			"window_miss INTEGER,"
 			"chart_hash TEXT)");
 
 		m_database.Exec("CREATE TABLE Collections"
@@ -1256,7 +1301,7 @@ private:
 		}
 
 		// Select Scores
-		DBStatement scoreScan = m_database.Query("SELECT rowid,score,crit,near,miss,gauge,gameflags,replay,timestamp,chart_hash,user_name,user_id,local_score FROM Scores");
+		DBStatement scoreScan = m_database.Query("SELECT rowid,score,crit,near,miss,gauge,gameflags,replay,timestamp,chart_hash,user_name,user_id,local_score,window_perfect,window_good,window_hold,window_miss FROM Scores");
 		
 		while (scoreScan.StepRow())
 		{
@@ -1275,6 +1320,11 @@ private:
 			score->userName = scoreScan.StringColumn(10);
 			score->userId = scoreScan.StringColumn(11);
 			score->localScore = scoreScan.IntColumn(12);
+
+			score->hitWindowPerfect = scoreScan.IntColumn(13);
+			score->hitWindowGood = scoreScan.IntColumn(14);
+			score->hitWindowHold = scoreScan.IntColumn(15);
+			score->hitWindowMiss = scoreScan.IntColumn(16);
 
 			// Add difficulty to map and resort difficulties
 			auto diffIt = m_chartsByHash.find(score->chartHash);

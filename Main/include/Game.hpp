@@ -4,6 +4,7 @@
 #include <Beatmap/MapDatabase.hpp>
 #include "json.hpp"
 #include "GameFailCondition.hpp"
+#include "HitStat.hpp"
 
 class MultiplayerScreen;
 
@@ -31,6 +32,8 @@ struct ScoreReplay
 	int32 maxScore = 0;
 	size_t nextHitStat = 0;
 	Vector<SimpleHitStat> replay;
+
+	HitWindow hitWindow = HitWindow::NORMAL;
 };
 
 GameFlags operator|(const GameFlags& a, const GameFlags& b);
@@ -110,6 +113,8 @@ public:
 	// Current playback speed
 	// Warning: this returns 0 when the song is not playing (ex: end of the game).
 	virtual float GetPlaybackSpeed() = 0;
+
+	virtual const PlayOptions& GetPlayOptions() const = 0;
 
 	// Get lua state
 	virtual struct lua_State* GetLuaState() = 0;

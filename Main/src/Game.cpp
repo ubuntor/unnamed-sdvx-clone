@@ -24,12 +24,6 @@
 #include "GameConfig.hpp"
 #include <Shared/Time.hpp>
 
-extern "C"
-{
-#include "lua.h"
-#include "lauxlib.h"
-}
-
 #include "GUI/HealthGauge.hpp"
 #include "PracticeModeSettingsDialog.hpp"
 
@@ -337,6 +331,14 @@ public:
 					replay.maxScore = score->score;
 					FileReader replayReader(replayFile);
 					replayReader.SerializeObject(replay.replay);
+
+					if (replayReader.Tell() + 16 <= replayReader.GetSize())
+					{
+						replayReader.Serialize(&(replay.hitWindow.perfect), 4);
+						replayReader.Serialize(&(replay.hitWindow.good), 4);
+						replayReader.Serialize(&(replay.hitWindow.hold), 4);
+						replayReader.Serialize(&(replay.hitWindow.miss), 4);
+					}
 				}
 			}
 
@@ -401,10 +403,17 @@ public:
 		if (!m_lua)
 			return false;
 
-		m_track->suddenCutoff = g_gameConfig.GetFloat(GameConfigKeys::SuddenCutoff);
+		if (g_gameConfig.GetBool(GameConfigKeys::EnableHiddenSudden)) {
+			m_track->suddenCutoff = g_gameConfig.GetFloat(GameConfigKeys::SuddenCutoff);
+			m_track->hiddenCutoff = g_gameConfig.GetFloat(GameConfigKeys::HiddenCutoff);
+		}
+		else {
+			m_track->suddenCutoff = 1.0f;
+			m_track->hiddenCutoff = 0.0f;
+		}
 		m_track->suddenFadewindow = g_gameConfig.GetFloat(GameConfigKeys::SuddenFade);
-		m_track->hiddenCutoff = g_gameConfig.GetFloat(GameConfigKeys::HiddenCutoff);
 		m_track->hiddenFadewindow = g_gameConfig.GetFloat(GameConfigKeys::HiddenFade);
+
 		m_track->distantButtonScale = g_gameConfig.GetFloat(GameConfigKeys::DistantButtonScale);
 		m_showCover = g_gameConfig.GetBool(GameConfigKeys::ShowCover);
 
@@ -452,6 +461,8 @@ public:
 		m_scoring.SetEndTime(m_endTime);
 		m_scoring.SetInput(&g_input);
 		m_scoring.Reset(m_playOptions.range);
+
+		m_scoring.SetHitWindow(GetHitWindow());
 
 		g_input.OnButtonPressed.Add(this, &Game_Impl::m_OnButtonPressed);
 
@@ -1177,8 +1188,8 @@ public:
 		m_scoring.OnLaserSlam.Add(this, &Game_Impl::OnLaserSlam);
 		m_scoring.OnLaserExit.Add(this, &Game_Impl::OnLaserExit);
 
-		m_playback.hittableObjectEnter = Scoring::missHitTime + g_gameConfig.GetInt(GameConfigKeys::InputOffset);
-		m_playback.hittableObjectLeave = Scoring::goodHitTime;
+		m_playback.hittableObjectEnter = m_scoring.hitWindow.miss + g_gameConfig.GetInt(GameConfigKeys::InputOffset);
+		m_playback.hittableObjectLeave = m_scoring.hitWindow.good;
 
 		if(g_application->GetAppCommandLine().Contains("-autobuttons"))
 		{
@@ -1314,6 +1325,7 @@ public:
 		}
 		else if (!m_scoring.autoplay && !m_isPracticeSetup && m_playOptions.failCondition && m_playOptions.failCondition->IsFailed(m_scoring))
 		{
+			m_scoring.currentGauge = 0.0f;
 			FailCurrentRun();
 		}
 	}
@@ -1669,7 +1681,8 @@ public:
 
 		float currentBPM = (float)(60000.0 / tp.beatDuration);
 		textPos.y += RenderText(Utility::Sprintf("BPM: %.1f | Time Sig: %d/%d", currentBPM, tp.numerator, tp.denominator), textPos).y;
-		textPos.y += RenderText(Utility::Sprintf("Time Signature: %d/%d", tp.numerator, tp.denominator), textPos).y;
+		textPos.y += RenderText(Utility::Sprintf("Hit Window: p=%d g=%d h=%d m=%d",
+			m_scoring.hitWindow.perfect, m_scoring.hitWindow.good, m_scoring.hitWindow.hold, m_scoring.hitWindow.miss), textPos).y;
 		textPos.y += RenderText(Utility::Sprintf("Paused: %s, LastMapTime: %d", m_paused ? "Yes" : "No", m_lastMapTime), textPos).y;
 		if (IsPartialPlay())
 			textPos.y += RenderText(Utility::Sprintf("Partial play: from %d ms to %d ms", m_playOptions.range.begin, m_playOptions.range.end), textPos).y;
@@ -1688,15 +1701,19 @@ public:
 		Vector2 buttonStateTextPos = Vector2(g_resolution.x - 200.0f, 100.0f);
 		RenderText(g_input.GetControllerStateString(), buttonStateTextPos);
 
-		if (m_scoring.autoplay)
+		if (!IsStorableScore())
 		{
 			if (m_isPracticeSetup)
 			{
 				textPos.y += RenderText("Practice setup", textPos, Color::Magenta).y;
 			}
-			else
+			else if(m_scoring.autoplay)
 			{
 				textPos.y += RenderText("Autoplay enabled", textPos, Color::Magenta).y;
+			}
+			else
+			{
+				textPos.y += RenderText("Score not storable", textPos, Color::Magenta).y;
 			}
 		}
 
@@ -2500,6 +2517,11 @@ return Scoring::CalculateBadge(scoreData);
 		if (m_playOptions.range.begin > 0) return true;
 		return m_playOptions.range.HasEnd();
 	}
+	
+	inline HitWindow GetHitWindow() const
+	{
+		return IsMultiplayerGame() ? HitWindow::NORMAL : HitWindow::FromConfig();
+	}
 
 	virtual bool IsPlaying() const override
 	{
@@ -2564,47 +2586,53 @@ return Scoring::CalculateBadge(scoreData);
 		if (m_manualExit) return false;
 		if (IsPartialPlay()) return false;
 
+		if (!(m_scoring.hitWindow <= HitWindow::NORMAL)) return false;
+
 		return true;
 	}
-	virtual float GetPlaybackSpeed() override
+	float GetPlaybackSpeed() override
 	{
 		return m_audioPlayback.GetPlaybackSpeed();
 	}
-	virtual int GetRetryCount() const override
+	const PlayOptions& GetPlayOptions() const override
+	{
+		return m_playOptions;
+	}
+	int GetRetryCount() const override
 	{
 		return m_loopCount;
 	}
-	virtual String GetMissionStr() const override
+	String GetMissionStr() const override
 	{
 		return m_playOptions.failCondition ? m_playOptions.failCondition->GetDescription() : "";
 	}
-	virtual const String& GetChartRootPath() const
+	const String& GetChartRootPath() const override
 	{
 		return m_chartRootPath;
 	}
-	virtual const String& GetChartPath() const
+	const String& GetChartPath() const override
 	{
 		return m_chartPath;
 	}
-	virtual bool IsMultiplayerGame() const
+	bool IsMultiplayerGame() const override
 	{
 		return m_multiplayer != nullptr;
 	}
-	virtual ChartIndex* GetChartIndex()
+	ChartIndex* GetChartIndex() override
 	{
 		return m_chartIndex;
 	}
-	virtual void SetDemoMode(bool value)
+	void SetDemoMode(bool value) override
 	{
 		m_demo = value;
 	}
-	virtual void SetSongDB(MapDatabase* db)
+	void SetSongDB(MapDatabase* db) override
 	{
 		m_db = db;
 		
 		if (m_isPracticeMode) LoadPracticeSetupIndex();
 	}
-	virtual void SetGameplayLua(lua_State* L)
+	void SetGameplayLua(lua_State* L) override
 	{
 		//set lua
 		lua_getglobal(L, "gameplay");
@@ -2786,7 +2814,7 @@ return Scoring::CalculateBadge(scoreData);
 
 		lua_setglobal(L, "gameplay");
 	}
-	virtual void SetInitialGameplayLua(lua_State* L)
+	void SetInitialGameplayLua(lua_State* L) override
 	{
 		auto pushStringToTable = [&](const char* name, String data)
 		{
@@ -2843,6 +2871,10 @@ return Scoring::CalculateBadge(scoreData);
 
 		lua_pushstring(L, "multiplayer");
 		lua_pushboolean(L, m_multiplayer != nullptr);
+		lua_settable(L, -3);
+
+		lua_pushstring(L, "hitWindow");
+		GetHitWindow().ToLuaTable(L);
 		lua_settable(L, -3);
 
 		if (m_multiplayer != nullptr)

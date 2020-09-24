@@ -290,7 +290,7 @@ public:
 			g_application->RemoveTickable(m_owner);
 		}
 	}
-	~SelectionWheel()
+	virtual ~SelectionWheel()
 	{
 		g_gameConfig.Set(GameConfigKeys::LastSelected, m_currentlySelectedMapId);
 		if (m_lua)
@@ -1331,7 +1331,7 @@ private:
 	PreviewParams m_previewParams;
 
 	Timer m_dbUpdateTimer;
-	MapDatabase *m_mapDatabase;
+	MapDatabase* m_mapDatabase;
 
 	// Map selection wheel
 	Ref<SelectionWheel> m_selectionWheel;
@@ -1345,9 +1345,6 @@ private:
 	// Player of preview music
 	PreviewPlayer m_previewPlayer;
 
-	// Current map that has music being preview played
-	ChartIndex *m_currentPreviewAudio;
-
 	// Select sound
 	Sample m_selectSound;
 
@@ -1358,14 +1355,11 @@ private:
 	MouseLockHandle m_lockMouse;
 	bool m_suspended = true;
 	bool m_hasRestored = false;
-	bool m_previewLoaded = true;
-	bool m_showScores = false;
-	uint64_t m_previewDelayTicks = 0;
 	Map<Input::Button, float> m_timeSinceButtonPressed;
 	Map<Input::Button, float> m_timeSinceButtonReleased;
-	lua_State *m_lua = nullptr;
+	lua_State* m_lua = nullptr;
 
-	MultiplayerScreen *m_multiplayer = nullptr;
+	MultiplayerScreen* m_multiplayer = nullptr;
 	CollectionDialog m_collDiag;
 	GameplaySettingsDialog m_settDiag;
 
@@ -1373,9 +1367,11 @@ private:
 	bool m_transitionedToGame = false;
 	int32 m_lastMapIndex = -1;
 
-	DBUpdateScreen *m_dbUpdateScreen = nullptr;
+	DBUpdateScreen* m_dbUpdateScreen = nullptr;
 
 public:
+	SongSelect_Impl() : m_settDiag(this) {}
+
 	bool AsyncLoad() override
 	{
 		m_selectSound = g_audio->CreateSample("audio/menu_click.wav");
@@ -1424,22 +1420,10 @@ public:
 
 	void m_SetCurrentChartOffset(int newValue)
 	{
-		ChartIndex* chart = m_selectionWheel->GetSelectedChart();
-		if (chart)
+		if (ChartIndex* chart = GetCurrentSelectedChart())
 		{
 			chart->custom_offset = newValue;
 		}
-	}
-
-	int m_GetCurrentChartOffset()
-	{
-		ChartIndex* chart = m_selectionWheel->GetSelectedChart();
-		if (chart)
-		{
-			return m_selectionWheel->GetSelectedChart()->custom_offset;
-		}
-
-		return 0;
 	}
 
 	bool AsyncFinalize() override
@@ -1502,23 +1486,13 @@ public:
 		if (!m_settDiag.Init())
 			return false;
 
-		GameplaySettingsDialog::Tab songTab = std::make_unique<GameplaySettingsDialog::TabData>();
-		GameplaySettingsDialog::Setting songOffsetSetting = std::make_unique<GameplaySettingsDialog::SettingData>("Song Offset", SettingType::Integer);
-		songTab->name = "Song";
-		songOffsetSetting->name = "Song Offset";
-		songOffsetSetting->type = SettingType::Integer;
-		songOffsetSetting->intSetting.val = 0;
-		songOffsetSetting->intSetting.min = -200;
-		songOffsetSetting->intSetting.max = 200;
-		songOffsetSetting->setter.AddLambda([this](const auto& data) { m_SetCurrentChartOffset(data.intSetting.val); });
-		songOffsetSetting->getter.AddLambda([this](auto& data) { data.intSetting.val = m_GetCurrentChartOffset(); });
-		songTab->settings.push_back(std::move(songOffsetSetting));
-		m_settDiag.AddTab(std::move(songTab));
+		m_settDiag.onSongOffsetChange.Add(this, &SongSelect_Impl::m_SetCurrentChartOffset);
 
 		m_settDiag.onPressAutoplay.AddLambda([this]() {
 			if (m_multiplayer != nullptr) return;
 
-			ChartIndex* chart = m_selectionWheel->GetSelectedChart();
+			ChartIndex* chart = GetCurrentSelectedChart();
+			if (chart == nullptr) return;
 			Game* game = Game::Create(chart, Game::FlagsFromSettings());
 			if (!game)
 			{
@@ -1538,7 +1512,8 @@ public:
 		m_settDiag.onPressPractice.AddLambda([this]() {
 			if (m_multiplayer != nullptr) return;
 
-			ChartIndex* chart = m_selectionWheel->GetSelectedChart();
+			ChartIndex* chart = GetCurrentSelectedChart();
+			if (chart == nullptr) return;
 			m_mapDatabase->UpdateChartOffset(chart);
 
 			Game* practiceGame = Game::CreatePractice(chart, Game::FlagsFromSettings());
@@ -1679,13 +1654,13 @@ public:
 				if (m_multiplayer != nullptr)
 				{
 					// When we are in multiplayer, just report the song and exit instead
-					m_multiplayer->SetSelectedMap(folder, m_selectionWheel->GetSelectedChart());
+					m_multiplayer->SetSelectedMap(folder, GetCurrentSelectedChart());
 
 					g_application->RemoveTickable(this);
 					return;
 				}
 
-				ChartIndex *chart = m_selectionWheel->GetSelectedChart();
+				ChartIndex* chart = GetCurrentSelectedChart();
 				m_mapDatabase->UpdateChartOffset(chart);
 				Game *game = Game::Create(chart, Game::FlagsFromSettings());
 				if (!game)
@@ -1737,11 +1712,11 @@ public:
 				{
 				case Input::Button::BT_1:
 					if (g_input.GetButton(Input::Button::BT_2))
-						m_collDiag.Open(*m_selectionWheel->GetSelectedChart());
+						m_collDiag.Open(GetCurrentSelectedChart());
 					break;
 				case Input::Button::BT_2:
 					if (g_input.GetButton(Input::Button::BT_1))
-						m_collDiag.Open(*m_selectionWheel->GetSelectedChart());
+						m_collDiag.Open(GetCurrentSelectedChart());
 					break;
 
 				case Input::Button::FX_1:
@@ -1820,7 +1795,7 @@ public:
 			m_selectionWheel->AdvanceSelection(steps);
 		}
 	}
-	virtual void OnKeyPressed(SDL_Scancode code)
+	void OnKeyPressed(SDL_Scancode code) override
 	{
 		if (m_multiplayer &&
 				m_multiplayer->GetChatOverlay()->OnKeyPressedConsume(code))
@@ -1884,7 +1859,7 @@ public:
 			}
 			else if (code == SDL_SCANCODE_F1 && m_hasCollDiag)
 			{
-				m_collDiag.Open(*m_selectionWheel->GetSelectedChart());
+				m_collDiag.Open(GetCurrentSelectedChart());
 			}
 			else if (code == SDL_SCANCODE_F2)
 			{
@@ -1919,7 +1894,7 @@ public:
 				String paramFormat = g_gameConfig.GetString(GameConfigKeys::EditorParamsFormat);
 				String path = Path::Normalize(g_gameConfig.GetString(GameConfigKeys::EditorPath));
 				String param = Utility::Sprintf(paramFormat.c_str(),
-												Utility::Sprintf("\"%s\"", Path::Absolute(m_selectionWheel->GetSelectedChart()->path)));
+												Utility::Sprintf("\"%s\"", Path::Absolute(GetCurrentSelectedChart()->path)));
 				Path::Run(path, param.GetData());
 			}
 			else if (code == SDL_SCANCODE_F12)
@@ -1951,10 +1926,10 @@ public:
 			}
 		}
 	}
-	virtual void OnKeyReleased(SDL_Scancode code)
+	void OnKeyReleased(SDL_Scancode code) override
 	{
 	}
-	virtual void Tick(float deltaTime) override
+	void Tick(float deltaTime) override
 	{
 		if (m_dbUpdateTimer.Milliseconds() > 500)
 		{
@@ -1979,7 +1954,7 @@ public:
 			m_multiplayer->GetChatOverlay()->Tick(deltaTime);
 	}
 
-	virtual void Render(float deltaTime)
+	void Render(float deltaTime) override
 	{
 		if (m_suspended && m_hasRestored) return;
 		lua_getglobal(m_lua, "render");
@@ -2069,7 +2044,7 @@ public:
 		m_advanceSong -= advanceSongActual;
 	}
 
-	virtual void OnSuspend()
+	void OnSuspend() override
 	{
 		m_lastMapIndex = m_selectionWheel->GetCurrentSongIndex();
 
@@ -2079,7 +2054,7 @@ public:
 		if (m_lockMouse)
 			m_lockMouse.reset();
 	}
-	virtual void OnRestore()
+	void OnRestore() override
 	{
 		g_application->DiscordPresenceMenu("Song Select");
 		m_suspended = false;
@@ -2104,6 +2079,11 @@ public:
 	void MakeMultiplayer(MultiplayerScreen *multiplayer)
 	{
 		m_multiplayer = multiplayer;
+	}
+
+	virtual ChartIndex* GetCurrentSelectedChart() override
+	{
+		return m_selectionWheel->GetSelectedChart();
 	}
 };
 
