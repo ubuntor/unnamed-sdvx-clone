@@ -180,6 +180,11 @@ Vector<String> Path::GetSubDirs(const String& path)
     closedir(dir);
     return ret;
 }
+void Path::OpenInBrowser(const String& path)
+{
+    Log("Path::OpenInBrowser function not implemented yet", Logger::Severity::Error);
+    return false;
+}
 bool Path::ShowInFileBrowser(const String& path)
 {
     Log("Path::ShowInFileBrowser function not implemented yet", Logger::Severity::Error);

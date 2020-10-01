@@ -159,6 +159,8 @@ DefineEnum(GameConfigKeys,
 		   GameplaySettingsDialogLastTab,
 		   TransferScoresOnChartUpdate,
 
+		   ShowCrashUploadPrompt,
+
 		   // Gameplay options
 		   GaugeType,
 		   MirrorChart,
