@@ -32,7 +32,7 @@ public:
 class AudioOutput_Impl
 {
 public:
-	SDL_AudioSpec m_audioSpec = { 0 };
+	SDL_AudioSpec m_audioSpec;
 	SDL_AudioDeviceID m_deviceId = 0;
 	IMixer* m_mixer = nullptr;
 	volatile bool m_running = false;
@@ -44,7 +44,7 @@ public:
         for(int32 i = 0; i < numAudioDrivers; i++)
 		{
             const char* drvName = SDL_GetAudioDriver(i);
-            Logf("Audio driver [%d]: %s", Logger::Info, i, drvName);
+            Logf("Audio driver [%d]: %s", Logger::Severity::Info, i, drvName);
 		}
 
 		SDLAudio::Main();
@@ -63,7 +63,9 @@ public:
 	{
 		CloseDevice();
 
-		SDL_AudioSpec desiredSpec = { 0 };
+		SDL_AudioSpec desiredSpec;
+		memset(&desiredSpec, 0, sizeof(SDL_AudioSpec));
+		memset(&m_audioSpec, 0, sizeof(SDL_AudioSpec));
 		desiredSpec.freq = 44100;
 		desiredSpec.format = AUDIO_F32;
 		desiredSpec.channels = 2;    /* 1 = mono, 2 = stereo */
@@ -72,13 +74,13 @@ public:
 		desiredSpec.userdata = this;
 
 		const char* audioDriverName = SDL_GetCurrentAudioDriver();
-		Logf("Using audio driver: %s", Logger::Info, audioDriverName);
+		Logf("Using audio driver: %s", Logger::Severity::Info, audioDriverName);
 
 		int32 numAudioDevices = SDL_GetNumAudioDevices(0);
 		for(int32 i = 0; i < numAudioDevices; i++)
 		{
             const char* devName = SDL_GetAudioDeviceName(i, 0);
-            Logf("Audio device [%d]: %s", Logger::Info, i, devName);
+            Logf("Audio device [%d]: %s", Logger::Severity::Info, i, devName);
 		}
 
 
@@ -86,7 +88,7 @@ public:
 		if(m_deviceId == 0 || m_deviceId < 2)
 		{
             const char* errMsg = SDL_GetError();
-            Logf("Failed to open SDL audio device: %s", Logger::Error, errMsg);
+            Logf("Failed to open SDL audio device: %s", Logger::Severity::Error, errMsg);
 			return false;
         }
 

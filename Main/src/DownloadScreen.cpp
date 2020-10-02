@@ -63,7 +63,7 @@ void DownloadScreen::Tick(float deltaTime)
 			lua_pushnumber(m_lua, advanceSongActual);
 			if (lua_pcall(m_lua, 1, 0, 0) != 0)
 			{
-				Logf("Lua error on advance_selection: %s", Logger::Error, lua_tostring(m_lua, -1));
+				Logf("Lua error on advance_selection: %s", Logger::Severity::Error, lua_tostring(m_lua, -1));
 				g_gameWindow->ShowMessageBox("Lua Error on advance_selection", lua_tostring(m_lua, -1), 0);
 			}
 		}
@@ -82,7 +82,7 @@ void DownloadScreen::Render(float deltaTime)
 	lua_pushnumber(m_lua, deltaTime);
 	if (lua_pcall(m_lua, 1, 0, 0) != 0)
 	{
-		Logf("Lua error: %s", Logger::Error, lua_tostring(m_lua, -1));
+		Logf("Lua error: %s", Logger::Severity::Error, lua_tostring(m_lua, -1));
 		g_gameWindow->ShowMessageBox("Lua Error", lua_tostring(m_lua, -1), 0);
 		g_application->RemoveTickable(this);
 	}
@@ -96,7 +96,7 @@ void DownloadScreen::OnKeyPressed(SDL_Scancode code)
 		lua_pushnumber(m_lua, static_cast<lua_Number>(SDL_GetKeyFromScancode(code)));
 		if (lua_pcall(m_lua, 1, 0, 0) != 0)
 		{
-			Logf("Lua error on key_pressed: %s", Logger::Error, lua_tostring(m_lua, -1));
+			Logf("Lua error on key_pressed: %s", Logger::Severity::Error, lua_tostring(m_lua, -1));
 			g_gameWindow->ShowMessageBox("Lua Error on key_pressed", lua_tostring(m_lua, -1), 0);
 		}
 	}
@@ -111,7 +111,7 @@ void DownloadScreen::OnKeyPressed(SDL_Scancode code)
 			lua_pushnumber(m_lua, dir);
 			if (lua_pcall(m_lua, 1, 0, 0) != 0)
 			{
-				Logf("Lua error on advance_selection: %s", Logger::Error, lua_tostring(m_lua, -1));
+				Logf("Lua error on advance_selection: %s", Logger::Severity::Error, lua_tostring(m_lua, -1));
 				g_gameWindow->ShowMessageBox("Lua Error on advance_selection", lua_tostring(m_lua, -1), 0);
 			}
 		}
@@ -127,7 +127,7 @@ void DownloadScreen::OnKeyReleased(SDL_Scancode code)
 		lua_pushnumber(m_lua, static_cast<lua_Number>(SDL_GetKeyFromScancode(code)));
 		if (lua_pcall(m_lua, 1, 0, 0) != 0)
 		{
-			Logf("Lua error on key_released: %s", Logger::Error, lua_tostring(m_lua, -1));
+			Logf("Lua error on key_released: %s", Logger::Severity::Error, lua_tostring(m_lua, -1));
 			g_gameWindow->ShowMessageBox("Lua Error on key_released", lua_tostring(m_lua, -1), 0);
 		}
 	}
@@ -161,7 +161,6 @@ void DownloadScreen::m_ArchiveLoop()
 				int res = archive_read_open_memory(a, ar.data.data(), ar.data.size());
 				if (res == ARCHIVE_OK)
 				{
-				
 					m_archiveLock.lock();
 					m_archiveResps.push(std::move(ar));
 					m_archiveLock.unlock();
@@ -169,7 +168,7 @@ void DownloadScreen::m_ArchiveLoop()
 				else
 				{
 					res = archive_read_free(a);
-					Log("Error opening downloaded chart archive for directory traversal", Logger::Error);
+					Log("Error opening downloaded chart archive for directory traversal", Logger::Severity::Error);
 				}
 			}
 			m_archiveLock.lock();
@@ -192,7 +191,7 @@ void DownloadScreen::m_OnButtonPressed(Input::Button buttonCode)
 		lua_pushnumber(m_lua, (int32)buttonCode);
 		if (lua_pcall(m_lua, 1, 0, 0) != 0)
 		{
-			Logf("Lua error on button_pressed: %s", Logger::Error, lua_tostring(m_lua, -1));
+			Logf("Lua error on button_pressed: %s", Logger::Severity::Error, lua_tostring(m_lua, -1));
 			g_gameWindow->ShowMessageBox("Lua Error on button_pressed", lua_tostring(m_lua, -1), 0);
 		}
 	}
@@ -207,7 +206,7 @@ void DownloadScreen::m_OnButtonReleased(Input::Button buttonCode)
 		lua_pushnumber(m_lua, (int32)buttonCode);
 		if (lua_pcall(m_lua, 1, 0, 0) != 0)
 		{
-			Logf("Lua error on button_released: %s", Logger::Error, lua_tostring(m_lua, -1));
+			Logf("Lua error on button_released: %s", Logger::Severity::Error, lua_tostring(m_lua, -1));
 			g_gameWindow->ShowMessageBox("Lua Error on button_released", lua_tostring(m_lua, -1), 0);
 		}
 	}
@@ -222,7 +221,7 @@ void DownloadScreen::m_OnMouseScroll(int32 steps)
 		lua_pushnumber(m_lua, steps);
 		if (lua_pcall(m_lua, 1, 0, 0) != 0)
 		{
-			Logf("Lua error on advance_selection: %s", Logger::Error, lua_tostring(m_lua, -1));
+			Logf("Lua error on advance_selection: %s", Logger::Severity::Error, lua_tostring(m_lua, -1));
 			g_gameWindow->ShowMessageBox("Lua Error on advance_selection", lua_tostring(m_lua, -1), 0);
 		}
 	}
@@ -234,15 +233,20 @@ void DownloadScreen::m_ProcessArchiveResponses()
 	m_archiveLock.lock();
 	if (m_archiveResps.size() > 0)
 	{
+		// When CP_UTF8 is used, libarchive will read the file name as the system codepage and convert it to UTF8 (why???)
+		// Temporarily change the locale to C while extracting the archive to avoid the problem.
+		String defaultLocale = setlocale(LC_CTYPE, nullptr);
+		setlocale(LC_CTYPE, "C");
+
 		// Get response
 		ArchiveResponse& ar = m_archiveResps.front();
 		m_archiveLock.unlock();
 
 		StringEncoding archiveEncoding = StringEncodingDetector::DetectArchive(ar.data);
 		if (archiveEncoding != StringEncoding::Unknown)
-			Logf("Archive encoding is assumed to be %s", Logger::Info, GetDisplayString(archiveEncoding));
+			Logf("Archive encoding is assumed to be %s", Logger::Severity::Info, GetDisplayString(archiveEncoding));
 		else
-			Log("Archive encoding couldn't be assumed. (Assuming UTF-8)", Logger::Warning);
+			Log("Archive encoding couldn't be assumed. (Assuming UTF-8)", Logger::Severity::Warning);
 
 		// Process response
 		lua_rawgeti(m_lua, LUA_REGISTRYINDEX, ar.callback);
@@ -266,17 +270,17 @@ void DownloadScreen::m_ProcessArchiveResponses()
 		
 		if (archive_read_free(ar.a) != ARCHIVE_OK)
 		{
-			Log("Error closing handle for downloaded chart archive", Logger::Error);
+			Log("Error closing handle for downloaded chart archive", Logger::Severity::Error);
 		}
 		lua_pushstring(m_lua, ar.id.c_str());
 		
 		if (readError)
 		{
-			Log("Error reading downloaded chart archive", Logger::Error);
+			Log("Error reading downloaded chart archive", Logger::Severity::Error);
 		}
 		else if (lua_pcall(m_lua, 2, 1, 0) != 0)
 		{
-			Logf("Lua error on calling archive callback: %s", Logger::Error, lua_tostring(m_lua, -1));
+			Logf("Lua error on calling archive callback: %s", Logger::Severity::Error, lua_tostring(m_lua, -1));
 		}
 		else // Process returned table and extract files
 		{
@@ -302,7 +306,7 @@ void DownloadScreen::m_ProcessArchiveResponses()
 			
 			if (archive_read_open_memory(ar.a, ar.data.data(), ar.data.size()) != ARCHIVE_OK)
 			{
-				Log("Error opening downloaded chart archive for extraction", Logger::Error);
+				Log("Error opening downloaded chart archive for extraction", Logger::Severity::Error);
 			}
 			else while (archive_read_next_header(ar.a, &entry) == ARCHIVE_OK) {
 				const String entryName = StringEncodingConverter::PathnameToUTF8(archiveEncoding, entry);
@@ -310,15 +314,15 @@ void DownloadScreen::m_ProcessArchiveResponses()
 				{
 					if (!m_extractFile(ar.a, entryPathMap.at(entryName)))
 					{
-						Logf("Failed to extract file: \"%s\"", Logger::Warning, entryName);
-						Logf("Archive error: %s", Logger::Warning, archive_error_string(ar.a));
+						Logf("Failed to extract file: \"%s\"", Logger::Severity::Warning, entryName);
+						Logf("Archive error: %s", Logger::Severity::Warning, archive_error_string(ar.a));
 					}
 				}
 			}
 
 			if (archive_read_free(ar.a) != ARCHIVE_OK)
 			{
-				Log("Error closing archive handle after extracting", Logger::Error);
+				Log("Error closing archive handle after extracting", Logger::Severity::Error);
 			}
 		}
 		
@@ -328,6 +332,8 @@ void DownloadScreen::m_ProcessArchiveResponses()
 		// Pop response
 		m_archiveLock.lock();
 		m_archiveResps.pop();
+
+		setlocale(LC_CTYPE, defaultLocale.c_str());
 	}
 	m_archiveLock.unlock();
 }
@@ -370,11 +376,11 @@ bool DownloadScreen::m_extractFile(archive * a, String path)
 	const String dot_dot_unix = "../";
 
 	if (path.find(dot_dot_win) != String::npos) {
-		Logf("[Archive] Error reading chart archive: '%s' can't appear in file name '%s'", Logger::Error, dot_dot_win.c_str(), path.c_str());
+		Logf("[Archive] Error reading chart archive: '%s' can't appear in file name '%s'", Logger::Severity::Error, dot_dot_win.c_str(), path.c_str());
 		return false;
 	}
 	if (path.find(dot_dot_unix) != String::npos) {
-		Logf("[Archive] Error reading chart archive: '%s' can't appear in file name '%s'", Logger::Error, dot_dot_unix.c_str(), path.c_str());
+		Logf("[Archive] Error reading chart archive: '%s' can't appear in file name '%s'", Logger::Severity::Error, dot_dot_unix.c_str(), path.c_str());
 		return false;
 	}
 	
@@ -392,6 +398,7 @@ bool DownloadScreen::m_extractFile(archive * a, String path)
 		f.Write(buff, size);
 	}
 	f.Close();
+	return true;
 }
 
 //https://stackoverflow.com/a/6142700
@@ -428,7 +435,7 @@ int DownloadScreen::m_PlayPreview(lua_State* L)
 	auto header = SkinHttp::HeaderFromLuaTable(L, 3);
 	String song_id = luaL_checkstring(L, 4);
 
-	Logf("Requesting Preview for song %s", Logger::Info, song_id);
+	Logf("Requesting Preview for song %s", Logger::Severity::Info, song_id);
 
 	String ext = Path::GetExtension(url);
 
@@ -441,7 +448,7 @@ int DownloadScreen::m_PlayPreview(lua_State* L)
 	// Download file if we have not before
 	if (!hasFile)
 	{
-		Logf("Requesting Preview URL %s", Logger::Info, url);
+		Logf("Requesting Preview URL %s", Logger::Severity::Info, url);
 		// TODO Move out of main thread?
 		cpr::Response preview_data = cpr::Get(cpr::Url{ url }, header);
 		auto response = preview_data;
@@ -458,21 +465,21 @@ int DownloadScreen::m_PlayPreview(lua_State* L)
 
 	if (!hasFile)
 	{
-		Logf("Could not save preview file at \"%s\"", Logger::Warning, preview_path);
+		Logf("Could not save preview file at \"%s\"", Logger::Severity::Warning, preview_path);
 		return 0;
 	}
 
-	Logf("Playing preview %s", Logger::Info, preview_path);
+	Logf("Playing preview %s", Logger::Severity::Info, preview_path);
 
 	// Try to play the preview
 	Ref<AudioStream> previewAudio = g_audio->CreateStream(preview_path);
-	if (previewAudio && previewAudio.GetData())
+	if (previewAudio && previewAudio.get())
 	{
 		m_previewPlayer.FadeTo(previewAudio, 0);
 	}
 	else
 	{
-		Logf("Failed to load preview audio from [%s]", Logger::Warning, preview_path);
+		Logf("Failed to load preview audio from [%s]", Logger::Severity::Warning, preview_path);
 		m_previewPlayer.FadeTo(Ref<AudioStream>());
 	}
 

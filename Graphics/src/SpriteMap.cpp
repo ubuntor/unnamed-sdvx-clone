@@ -45,7 +45,7 @@ namespace Graphics
 		{
 			Clear();
 		}
-		virtual void Clear()
+		void Clear() override
 		{
 			for(auto s : m_segments)
 			{
@@ -74,7 +74,6 @@ namespace Graphics
 		// Returns the category that has space for the requested size
 		Category& AssignCategory(Vector2i requestedSize)
 		{
-			int32 mostSpace = 0;
 			Category* dstCat = nullptr;
 
 			while(true)
@@ -88,7 +87,6 @@ namespace Graphics
 					if(remainingY > requestedSize.y)
 					{
 						// This category is OK
-						mostSpace = remainingY;
 						dstCat = &cat;
 						break;
 					}
@@ -135,7 +133,7 @@ namespace Graphics
 			
 			return *dstCat;
 		}
-		virtual uint32 AddSegment(Image image)
+		uint32 AddSegment(Image image) override
 		{
 			// Create a new segment
 			uint32 nI = (uint32)m_segments.size();
@@ -160,7 +158,6 @@ namespace Graphics
 
 		void CopySubImage(Image dst, Image src, Vector2i dstPos)
 		{
-			Vector2i dstSize = dst->GetSize();
 			Vector2i srcSize = src->GetSize();
 
 			Colori* pSrc = src->GetBits();
@@ -177,16 +174,16 @@ namespace Graphics
 				pDst += (nDstPitch - srcSize.x);
 			}
 		}
-		virtual Recti GetCoords(uint32 nIndex)
+		Recti GetCoords(uint32 nIndex) override
 		{
 			assert(nIndex < m_segments.size());
 			return m_segments[nIndex]->coords;
 		}
-		virtual Ref<ImageRes> GetImage() override
+		Ref<ImageRes> GetImage() override
 		{
 			return m_image;
 		}
-		virtual Texture GenerateTexture(OpenGL* gl)
+		Texture GenerateTexture(OpenGL* gl) override
 		{
 			Texture tex = TextureRes::Create(gl, m_image);
 			tex->SetWrap(TextureWrap::Clamp, TextureWrap::Clamp);

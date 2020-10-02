@@ -112,7 +112,7 @@ bool Track::AsyncFinalize()
 	// Load track cover material & texture here for skin back-compat
 	trackCoverMaterial = g_application->LoadMaterial("trackCover");
 	trackCoverTexture = g_application->LoadTexture("trackCover.png");
-	if (trackCoverMaterial.IsValid())
+	if (trackCoverMaterial)
 	{
 		trackCoverMaterial->opaque = false;
 	}
@@ -461,11 +461,11 @@ void Track::DrawObjectState(RenderQueue& rq, class BeatmapPlayback& playback, Ob
 			xposition = buttonTrackWidth * -0.5f + fxbuttonWidth *(mobj->button.index - 4);
 			if (mobj->button.index < 5)
 			{
-				xposition -= 0.5 * centerSplit * buttonWidth;
+				xposition -= 0.5f * centerSplit * buttonWidth;
 			}
 			else
 			{
-				xposition += 0.5 * centerSplit * buttonWidth;
+				xposition += 0.5f * centerSplit * buttonWidth;
 			}
 			length = fxbuttonLength;
 			params.SetParameter("hasSample", mobj->button.hasSample);
@@ -645,7 +645,7 @@ void Track::DrawCombo(RenderQueue& rq, uint32 score, Color color, float scale)
 void Track::DrawTrackCover(RenderQueue& rq)
 {
 	#ifndef EMBEDDED
-	if (trackCoverMaterial.IsValid() && trackCoverTexture.IsValid())
+	if (trackCoverMaterial && trackCoverTexture)
 	{
 		Transform t = trackOrigin;
 		MaterialParameterSet p;

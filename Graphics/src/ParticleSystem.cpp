@@ -37,7 +37,7 @@ namespace Graphics
 			{
 				(*it)->Render(rs, deltaTime);
 
-				if(it->GetRefCount() == 1)
+				if(it->use_count() == 1)
 				{
 					if((*it)->HasFinished())
 					{
@@ -55,17 +55,17 @@ namespace Graphics
 				it++;
 			}
 		}
-		virtual Ref<ParticleEmitter> AddEmitter() override
+		Ref<ParticleEmitter> AddEmitter() override
 		{
 			Ref<ParticleEmitter> newEmitter = Utility::MakeRef<ParticleEmitter>(new ParticleEmitter(this));
 			m_emitters.Add(newEmitter);
 			return newEmitter;
 		}
-		virtual void Reset()
+		void Reset() override
 		{
 			for(auto em : m_emitters)
 			{
-				em.Destroy();
+				em.reset();
 			}
 			m_emitters.clear();
 		}
@@ -170,7 +170,11 @@ namespace Graphics
 		if(newCapacity > 0)
 		{
 			m_particles = new Particle[m_poolSize];
-			memset(m_particles, 0, m_poolSize * sizeof(Particle));
+			for (size_t i = 0; i < m_poolSize; i++)
+			{
+				m_particles[i] = Particle();
+			}
+			
 		}
 		else
 		{

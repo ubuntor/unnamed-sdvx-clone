@@ -38,7 +38,7 @@ public:
 	// when the object is no longer referenced the resource manager will collect it when the next garbage collection triggers
 	const Ref<T> Register(T* pObject)
 	{
-		Ref<T> ret = Utility::MakeRef(pObject);
+		Ref<T> ret(pObject);
 		m_lock.lock();
 		m_objects.push_back(ret);
 		m_lock.unlock();
@@ -50,7 +50,7 @@ public:
 		m_lock.lock();
 		for(auto it = m_objects.begin(); it != m_objects.end();)
 		{
-			if(it->GetRefCount() <= 1)
+			if(it->use_count() <= 1)
 			{
 				numCleanedUp++;
 				it = m_objects.erase(it);
@@ -64,20 +64,20 @@ public:
 			//Logf("Cleaned up %d resource(s) of %s", Logger::Info, numCleanedUp, Utility::TypeInfo<T>::name);
 		}
 	}
-	virtual void ReleaseAll()
+	void ReleaseAll() override
 	{
 		m_lock.lock();
 		size_t numCleanedUp = m_objects.size();
 		for(auto it = m_objects.begin(); it != m_objects.end(); it++)
 		{
 			if(*it)
-				it->Destroy();
+				it->reset();
 		}
 		m_objects.clear();
 		m_lock.unlock();
 		if(numCleanedUp > 0)
 		{
-			Logf("Cleaned up %d resource(s) of %s", Logger::Info, numCleanedUp, Utility::TypeInfo<T>::name);
+			Logf("Cleaned up %d resource(s) of %s", Logger::Severity::Info, numCleanedUp, Utility::TypeInfo<T>::name);
 		}
 	}
 };

@@ -32,7 +32,7 @@ bool AudioStreamOgg::Init(Audio* audio, const String& path, bool preload)
 	});
 	if(r != 0)
 	{
-		Logf("ov_open_callbacks failed with code %d", Logger::Error, r);
+		Logf("ov_open_callbacks failed with code %d", Logger::Severity::Error, r);
 		return false;
 	}
 
@@ -59,7 +59,7 @@ bool AudioStreamOgg::Init(Audio* audio, const String& path, bool preload)
 			{
 				if (m_info.channels == 2)
 				{
-					for (size_t i = 0; i < r; i++)
+					for (int i = 0; i < r; i++)
 					{
 						m_pcm.Add(readBuffer[0][i]);
 						m_pcm.Add(readBuffer[1][i]);
@@ -67,7 +67,7 @@ bool AudioStreamOgg::Init(Audio* audio, const String& path, bool preload)
 				}
 				else if (m_info.channels == 1)
 				{
-					for (size_t i = 0; i < r; i++)
+					for (int i = 0; i < r; i++)
 					{
 						m_pcm.Add(readBuffer[0][i]);
 						m_pcm.Add(readBuffer[0][i]);
@@ -139,7 +139,7 @@ int32 AudioStreamOgg::DecodeData_Internal()
 				m_playPos++;
 				continue;
 			}
-			else if (m_playPos >= m_samplesTotal)
+			else if ((uint64)m_playPos >= m_samplesTotal)
 			{
 				m_currentBufferSize = m_bufferSize;
 				m_remainingBufferData = m_bufferSize;
@@ -196,7 +196,7 @@ int32 AudioStreamOgg::DecodeData_Internal()
 	{
 		// Error
 		m_playing = false;
-		Logf("Ogg Stream error %d", Logger::Warning, r);
+		Logf("Ogg Stream error %d", Logger::Severity::Warning, r);
 		return -1;
 	}
 }

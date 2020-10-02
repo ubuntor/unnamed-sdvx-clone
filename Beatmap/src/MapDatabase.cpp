@@ -32,11 +32,16 @@ public:
 
 	Map<int32, FolderIndex*> m_folders;
 	Map<int32, ChartIndex*> m_charts;
+	Map<int32, PracticeSetupIndex*> m_practiceSetups;
+
 	Map<String, ChartIndex*> m_chartsByHash;
 	Map<String, FolderIndex*> m_foldersByPath;
+	Multimap<int32, PracticeSetupIndex*> m_practiceSetupsByChartId;
+
 	int32 m_nextFolderId = 1;
 	int32 m_nextChartId = 1;
 	String m_sortField = "title";
+	bool m_transferScores = true;
 
 	struct SearchState
 	{
@@ -73,15 +78,16 @@ public:
 	List<Event> m_pendingChanges;
 	mutex m_pendingChangesLock;
 
-	static const int32 m_version = 14;
+	static const int32 m_version = 16;
 
 public:
-	MapDatabase_Impl(MapDatabase& outer) : m_outer(outer)
+	MapDatabase_Impl(MapDatabase& outer, bool transferScores) : m_outer(outer)
 	{
+		m_transferScores = transferScores;
 		String databasePath = Path::Absolute("maps.db");
 		if(!m_database.Open(databasePath))
 		{
-			Logf("Failed to open database [%s]", Logger::Warning, databasePath);
+			Logf("Failed to open database [%s]", Logger::Severity::Warning, databasePath);
 			assert(false);
 		}
 		m_paused.store(false);
@@ -211,7 +217,7 @@ public:
 						hash = Utility::Sprintf("%08x%08x%08x%08x%08x", digest[0], digest[1], digest[2], digest[3], digest[4]);
 					}
 					else {
-						Logf("Could not open chart file at \"%s\" scores will be lost.", Logger::Warning, diffpath);
+						Logf("Could not open chart file at \"%s\" scores will be lost.", Logger::Severity::Warning, diffpath);
 						continue;
 					}
 
@@ -226,7 +232,7 @@ public:
 						score.crit = scoreScan.IntColumn(2);
 						score.almost = scoreScan.IntColumn(3);
 						score.miss = scoreScan.IntColumn(4);
-						score.gauge = scoreScan.DoubleColumn(5);
+						score.gauge = (float) scoreScan.DoubleColumn(5);
 						score.gameflags = scoreScan.IntColumn(6);
 						Buffer hitstats = scoreScan.BlobColumn(7);
 						score.timestamp = scoreScan.Int64Column(8);
@@ -241,7 +247,7 @@ public:
 						}
 						else
 						{
-							Logf("Could not open replay file at \"%s\" replay data will be lost.", Logger::Warning, score.replayPath);
+							Logf("Could not open replay file at \"%s\" replay data will be lost.", Logger::Severity::Warning, score.replayPath);
 						}
 						scoresToAdd.Add(score);
 						totalScoreCount++;
@@ -294,6 +300,43 @@ public:
 				m_database.Exec("UPDATE Scores SET local_score=1");
 				m_database.Exec("UPDATE Scores SET user_name=\"\"");
 				m_database.Exec("UPDATE Scores SET user_id=\"\"");
+				gotVersion = 14;
+			}
+			if (gotVersion == 14)
+			{
+				m_database.Exec("CREATE TABLE PracticeSetups ("
+					"chart_id INTEGER,"
+					"setup_title TEXT,"
+					"loop_success INTEGER,"
+					"loop_fail INTEGER,"
+					"range_begin INTEGER,"
+					"range_end INTEGER,"
+					"fail_cond_type INTEGER,"
+					"fail_cond_value INTEGER,"
+					"playback_speed REAL,"
+					"inc_speed_on_success INTEGER,"
+					"inc_speed REAL,"
+					"inc_streak INTEGER,"
+					"dec_speed_on_fail INTEGER,"
+					"dec_speed REAL,"
+					"min_playback_speed REAL,"
+					"max_rewind INTEGER,"
+					"max_rewind_measure INTEGER,"
+					"FOREIGN KEY(chart_id) REFERENCES Charts(rowid)"
+				")");
+				gotVersion = 15;
+			}
+			if (gotVersion == 15)
+			{
+				m_database.Exec("ALTER TABLE Scores ADD COLUMN window_perfect INTEGER");
+				m_database.Exec("ALTER TABLE Scores ADD COLUMN window_good INTEGER");
+				m_database.Exec("ALTER TABLE Scores ADD COLUMN window_hold INTEGER");
+				m_database.Exec("ALTER TABLE Scores ADD COLUMN window_miss INTEGER");
+				m_database.Exec("UPDATE Scores SET window_perfect=46");
+				m_database.Exec("UPDATE Scores SET window_good=92");
+				m_database.Exec("UPDATE Scores SET window_hold=138");
+				m_database.Exec("UPDATE Scores SET window_miss=250");
+				gotVersion = 16;
 			}
 			m_database.Exec(Utility::Sprintf("UPDATE Database SET `version`=%d WHERE `rowid`=1", m_version));
 
@@ -414,10 +457,11 @@ public:
 
 	Map<int32, FolderIndex*> FindFoldersByPath(const String& searchString)
 	{
-		String stmt = "SELECT DISTINCT folderId FROM Charts WHERE path LIKE \"%" + searchString + "%\"";
+		String stmt = "SELECT DISTINCT folderId FROM Charts WHERE path LIKE ?";
+		DBStatement search = m_database.Query(stmt);
+		search.BindString(1, "%" + searchString + "%");
 
 		Map<int32, FolderIndex*> res;
-		DBStatement search = m_database.Query(stmt);
 		while(search.StepRow())
 		{
 			int32 id = search.IntColumn(0);
@@ -444,17 +488,28 @@ public:
 		{
 			if(i > 0)
 				stmt += " AND";
-			stmt += " (artist LIKE \"%" + term + "%\"" + 
-				" OR title LIKE \"%" + term + "%\"" +
-				" OR path LIKE \"%" + term + "%\"" +
-				" OR effector LIKE \"%" + term + "%\"" +
-				" OR artist_translit LIKE \"%" + term + "%\"" +
-				" OR title_translit LIKE \"%" + term + "%\")";
+			stmt += String(" (artist LIKE ?") +
+				" OR title LIKE ?" +
+				" OR path LIKE ?" +
+				" OR effector LIKE ?" +
+				" OR artist_translit LIKE ?" +
+				" OR title_translit LIKE ?)";
 			i++;
+		}
+		DBStatement search = m_database.Query(stmt);
+
+		i = 1;
+		for (auto term : terms)
+		{
+			// Bind all the terms
+			for (int j = 0; j < 6; j++)
+			{
+				search.BindString(i+j, "%" + term + "%");
+			}
+			i+=6;
 		}
 
 		Map<int32, FolderIndex*> res;
-		DBStatement search = m_database.Query(stmt);
 		while(search.StepRow())
 		{
 			int32 id = search.IntColumn(0);
@@ -491,12 +546,56 @@ public:
 		return res;
 	}
 
+	Vector<PracticeSetupIndex*> GetOrAddPracticeSetups(int32 chartId)
+	{
+		Vector<PracticeSetupIndex*> res;
+
+		auto it = m_practiceSetupsByChartId.equal_range(chartId);
+		for (auto it1 = it.first; it1 != it.second; ++it1)
+		{
+			res.Add(it1->second);
+		}
+
+		if (res.empty())
+		{
+			PracticeSetupIndex* practiceSetup = new PracticeSetupIndex();
+			practiceSetup->id = -1;
+			practiceSetup->chartId = chartId;
+
+			practiceSetup->setupTitle = "";
+			practiceSetup->loopSuccess = 0;
+			practiceSetup->loopFail = 1;
+			practiceSetup->rangeBegin = 0;
+			practiceSetup->rangeEnd = 0;
+			practiceSetup->failCondType = 0;
+			practiceSetup->failCondValue = 0;
+			practiceSetup->playbackSpeed = 1.0;
+
+			practiceSetup->incSpeedOnSuccess = 0;
+			practiceSetup->incSpeed = 0.0;
+			practiceSetup->incStreak = 1;
+
+			practiceSetup->decSpeedOnFail = 0;
+			practiceSetup->decSpeed = 0.0;
+			practiceSetup->minPlaybackSpeed = 0.1;
+
+			practiceSetup->maxRewind = 0;
+			practiceSetup->maxRewindMeasure = 1;
+
+			UpdateOrAddPracticeSetup(practiceSetup);
+			res.emplace_back(practiceSetup);
+		}
+
+		return res;
+	}
+
 	Map<int32, FolderIndex*> FindFoldersByCollection(const String& collection)
 	{
-		String stmt = Utility::Sprintf("SELECT folderid FROM Collections WHERE collection==\"%s\"", collection);
+		String stmt = "SELECT folderid FROM Collections WHERE collection==?";
+		DBStatement search = m_database.Query(stmt);
+		search.BindString(1, collection);
 
 		Map<int32, FolderIndex*> res;
-		DBStatement search = m_database.Query(stmt);
 		while (search.StepRow())
 		{
 			int32 id = search.IntColumn(0);
@@ -517,10 +616,12 @@ public:
 		csep[0] = Path::sep;
 		csep[1] = 0;
 		String sep(csep);
-		String stmt = "SELECT rowid FROM folders WHERE path LIKE \"%" + sep + folder + sep + "%\"";
+		String stmt = "SELECT rowid FROM folders WHERE path LIKE ?";
+		DBStatement search = m_database.Query(stmt);
+		search.BindString(1, "%" + sep + folder + sep + "%");
+
 
 		Map<int32, FolderIndex*> res;
-		DBStatement search = m_database.Query(stmt);
 		while (search.StepRow())
 		{
 			int32 id = search.IntColumn(0);
@@ -549,7 +650,8 @@ public:
 			"diff_name=?,diff_shortname=?,bpm=?,diff_index=?,level=?,hash=?,preview_file=?,preview_offset=?,preview_length=?,lwt=? WHERE rowid=?"); //TODO: update
 		DBStatement removeChart = m_database.Query("DELETE FROM Charts WHERE rowid=?");
 		DBStatement removeFolder = m_database.Query("DELETE FROM Folders WHERE rowid=?");
-		DBStatement scoreScan = m_database.Query("SELECT rowid,score,crit,near,miss,gauge,gameflags,replay,timestamp,user_name,user_id,local_score FROM Scores WHERE chart_hash=?");
+		DBStatement scoreScan = m_database.Query("SELECT rowid,score,crit,near,miss,gauge,gameflags,replay,timestamp,user_name,user_id,local_score,window_perfect,window_good,window_hold,window_miss FROM Scores WHERE chart_hash=?");
+		DBStatement moveScores = m_database.Query("UPDATE Scores set chart_hash=? where chart_hash=?");
 
 		Set<FolderIndex*> addedEvents;
 		Set<FolderIndex*> removeEvents;
@@ -575,7 +677,7 @@ public:
 					folder = new FolderIndex();
 					folder->id = m_nextFolderId++;
 					folder->path = folderPath;
-					folder->selectId = m_folders.size();
+					folder->selectId = (int32) m_folders.size();
 
 					m_folders.Add(folder->id, folder);
 					m_foldersByPath.Add(folder->path, folder);
@@ -624,7 +726,7 @@ public:
 					score->crit = scoreScan.IntColumn(2);
 					score->almost = scoreScan.IntColumn(3);
 					score->miss = scoreScan.IntColumn(4);
-					score->gauge = scoreScan.DoubleColumn(5);
+					score->gauge = (float) scoreScan.DoubleColumn(5);
 					score->gameflags = scoreScan.IntColumn(6);
 					score->replayPath = scoreScan.StringColumn(7);
 
@@ -633,13 +735,17 @@ public:
 					score->userId = scoreScan.StringColumn(10);
 					score->localScore = scoreScan.IntColumn(11);
 
+					score->hitWindowPerfect = scoreScan.IntColumn(12);
+					score->hitWindowGood = scoreScan.IntColumn(13);
+					score->hitWindowHold = scoreScan.IntColumn(14);
+					score->hitWindowMiss = scoreScan.IntColumn(15);
+
 					score->chartHash = chart->hash;
 					chart->scores.Add(score);
 				}
 				scoreScan.Rewind();
 
 				m_SortScores(chart);
-
 
 				m_charts.Add(chart->id, chart);
 				m_chartsByHash.Add(chart->hash, chart);
@@ -725,6 +831,15 @@ public:
 				chart->bpm = e.mapData->bpm;
 				chart->illustrator = e.mapData->illustrator;
 				chart->jacket_path = e.mapData->jacketPath;
+
+
+				// Check if the hash has changed...
+				if (chart->hash != e.hash && m_transferScores) {
+					moveScores.BindString(1, e.hash);
+					moveScores.BindString(2, chart->hash);
+					moveScores.Step();
+					moveScores.Rewind();
+				}
 				chart->hash = e.hash;
 
 
@@ -822,8 +937,7 @@ public:
 
 	void AddScore(ScoreIndex* score)
 	{
-		DBStatement addScore = m_database.Query("INSERT INTO Scores(score,crit,near,miss,gauge,gameflags,replay,timestamp,chart_hash,user_name,user_id,local_score) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)");
-
+		DBStatement addScore = m_database.Query("INSERT INTO Scores(score,crit,near,miss,gauge,gameflags,replay,timestamp,chart_hash,user_name,user_id,local_score,window_perfect,window_good,window_hold,window_miss) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
 
 		m_database.Exec("BEGIN");
 		addScore.BindInt(1, score->score);
@@ -838,16 +952,102 @@ public:
 		addScore.BindString(10, score->userName);
 		addScore.BindString(11, score->userId);
 		addScore.BindInt(12, score->localScore);
+		addScore.BindInt(13, score->hitWindowPerfect);
+		addScore.BindInt(14, score->hitWindowGood);
+		addScore.BindInt(15, score->hitWindowHold);
+		addScore.BindInt(16, score->hitWindowMiss);
 
 		addScore.Step();
 		addScore.Rewind();
 
 		m_database.Exec("END");
+	}
 
+	void UpdateOrAddPracticeSetup(PracticeSetupIndex* practiceSetup)
+	{
+		if (!m_charts.Contains(practiceSetup->chartId))
+		{
+			Logf("UpdateOrAddPracticeSetup called for invalid chart %d", Logger::Severity::Warning, practiceSetup->chartId);
+			return;
+		}
+
+		const bool isUpdate = practiceSetup->id >= 0;
+		
+		if (isUpdate && !m_practiceSetups.Contains(practiceSetup->id))
+		{
+			Logf("UpdateOrAddPracticeSetup called for invalid index %d", Logger::Severity::Warning, practiceSetup->id);
+			return;
+		}
+
+		const constexpr char* addQuery = "INSERT INTO PracticeSetups("
+			"chart_id, setup_title, loop_success, loop_fail, range_begin, range_end, fail_cond_type, fail_cond_value, "
+			"playback_speed, inc_speed_on_success, inc_speed, inc_streak, dec_speed_on_fail, dec_speed, min_playback_speed, max_rewind, max_rewind_measure"
+			") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+
+		const constexpr char* updateQuery = "UPDATE PracticeSetups SET "
+			"chart_id=?, setup_title=?, loop_success=?, loop_fail=?, range_begin=?, range_end=?, fail_cond_type=?, fail_cond_value=?, "
+			"playback_speed=?, inc_speed_on_success=?, inc_speed=?, inc_streak=?, dec_speed_on_fail=?, dec_speed=?, min_playback_speed=?, max_rewind=?, max_rewind_measure=?"
+			" WHERE rowid=?";
+
+		DBStatement statement = m_database.Query(isUpdate ? updateQuery : addQuery);
+
+		m_database.Exec("BEGIN");
+
+		statement.BindInt(1, practiceSetup->chartId);
+		statement.BindString(2, practiceSetup->setupTitle);
+		statement.BindInt(3, practiceSetup->loopSuccess);
+		statement.BindInt(4, practiceSetup->loopFail);
+		statement.BindInt(5, practiceSetup->rangeBegin);
+		statement.BindInt(6, practiceSetup->rangeEnd);
+		statement.BindInt(7, practiceSetup->failCondType);
+		statement.BindInt(8, practiceSetup->failCondValue);
+		statement.BindDouble(9, practiceSetup->playbackSpeed);
+		statement.BindInt(10, practiceSetup->incSpeedOnSuccess);
+		statement.BindDouble(11, practiceSetup->incSpeed);
+		statement.BindInt(12, practiceSetup->incStreak);
+		statement.BindInt(13, practiceSetup->decSpeedOnFail);
+		statement.BindDouble(14, practiceSetup->decSpeed);
+		statement.BindDouble(15, practiceSetup->minPlaybackSpeed);
+		statement.BindInt(16, practiceSetup->maxRewind);
+		statement.BindInt(17, practiceSetup->maxRewindMeasure);
+
+		if (isUpdate)
+			statement.BindInt(18, practiceSetup->id);
+
+		if (statement.Step())
+		{
+			if (!isUpdate)
+			{
+				DBStatement rowidStatement = m_database.Query("SELECT last_insert_rowid()");
+				if (rowidStatement.StepRow())
+				{
+					practiceSetup->id = rowidStatement.IntColumn(0);
+					assert(!m_practiceSetups.Contains(practiceSetup->id));
+
+					m_practiceSetups.Add(practiceSetup->id, practiceSetup);
+					m_practiceSetupsByChartId.Add(practiceSetup->chartId, practiceSetup);
+				}
+				else
+				{
+					Log("Failed to retrieve rowid for UpdateOrAddPracticeSetup", Logger::Severity::Warning);
+				}
+
+				rowidStatement.Rewind();
+			}
+		}
+		else
+		{
+			Log("Failed to execute query for UpdateOrAddPracticeSetup", Logger::Severity::Warning);
+		}
+
+		statement.Rewind();
+
+		m_database.Exec("END");
 	}
 
 	void UpdateChartOffset(const ChartIndex* chart)
 	{
+		// Safe from sqli bc hash will be alphanum
 		m_database.Exec(Utility::Sprintf("UPDATE Charts SET custom_offset=%d WHERE hash LIKE '%s'", chart->custom_offset, *chart->hash));
 	}
 
@@ -866,7 +1066,11 @@ public:
 
 		if (!result) //Failed to add, try to remove
 		{
-			m_database.Exec(Utility::Sprintf("DELETE FROM collections WHERE folderid==%d AND collection==\"%s\"", mapid, name));
+			DBStatement remColl = m_database.Query("DELETE FROM collections WHERE folderid==? AND collection==?");
+			remColl.BindInt(1, mapid);
+			remColl.BindString(2, name);
+			remColl.Step();
+			remColl.Rewind();
 		}
 	}
 
@@ -895,6 +1099,10 @@ public:
 		m_cvPause.notify_all();
 	}
 
+	void SetChartUpdateBehavior(bool transferScores) {
+		m_transferScores = transferScores;
+	}
+
 private:
 	void m_CleanupMapIndex()
 	{
@@ -911,8 +1119,14 @@ private:
 			m.second->scores.clear();
 			delete m.second;
 		}
+		for (auto m : m_practiceSetups)
+		{
+			delete m.second;
+		}
 		m_folders.clear();
 		m_charts.clear();
+		m_practiceSetups.clear();
+		m_practiceSetupsByChartId.clear();
 	}
 	void m_CreateTables()
 	{
@@ -959,12 +1173,37 @@ private:
 			"user_name TEXT,"
 			"user_id TEXT,"
 			"local_score INTEGER,"
+			"window_perfect INTEGER,"
+			"window_good INTEGER,"
+			"window_hold INTEGER,"
+			"window_miss INTEGER,"
 			"chart_hash TEXT)");
 
 		m_database.Exec("CREATE TABLE Collections"
 			"(collection TEXT, folderid INTEGER, "
 			"UNIQUE(collection,folderid), "
 			"FOREIGN KEY(folderid) REFERENCES Folders(rowid))");
+
+		m_database.Exec("CREATE TABLE PracticeSetups ("
+			"chart_id INTEGER,"
+			"setup_title TEXT,"
+			"loop_success INTEGER,"
+			"loop_fail INTEGER,"
+			"range_begin INTEGER,"
+			"range_end INTEGER,"
+			"fail_cond_type INTEGER,"
+			"fail_cond_value INTEGER,"
+			"playback_speed REAL,"
+			"inc_speed_on_success INTEGER,"
+			"inc_speed REAL,"
+			"inc_streak INTEGER,"
+			"dec_speed_on_fail INTEGER,"
+			"dec_speed REAL,"
+			"min_playback_speed REAL,"
+			"max_rewind INTEGER,"
+			"max_rewind_measure INTEGER,"
+			"FOREIGN KEY(chart_id) REFERENCES Charts(rowid)"
+		")");
 	}
 	void m_LoadInitialData()
 	{
@@ -983,7 +1222,7 @@ private:
 			FolderIndex* folder = new FolderIndex();
 			folder->id = mapScan.IntColumn(0);
 			folder->path = mapScan.StringColumn(1);
-			folder->selectId = m_folders.size();
+			folder->selectId = (int32) m_folders.size();
 			m_folders.Add(folder->id, folder);
 			m_foldersByPath.Add(folder->path, folder);
 		}
@@ -1062,7 +1301,7 @@ private:
 		}
 
 		// Select Scores
-		DBStatement scoreScan = m_database.Query("SELECT rowid,score,crit,near,miss,gauge,gameflags,replay,timestamp,chart_hash,user_name,user_id,local_score FROM Scores");
+		DBStatement scoreScan = m_database.Query("SELECT rowid,score,crit,near,miss,gauge,gameflags,replay,timestamp,chart_hash,user_name,user_id,local_score,window_perfect,window_good,window_hold,window_miss FROM Scores");
 		
 		while (scoreScan.StepRow())
 		{
@@ -1072,7 +1311,7 @@ private:
 			score->crit = scoreScan.IntColumn(2);
 			score->almost = scoreScan.IntColumn(3);
 			score->miss = scoreScan.IntColumn(4);
-			score->gauge = scoreScan.DoubleColumn(5);
+			score->gauge = (float) scoreScan.DoubleColumn(5);
 			score->gameflags = scoreScan.IntColumn(6);
 			score->replayPath = scoreScan.StringColumn(7);
 
@@ -1081,6 +1320,11 @@ private:
 			score->userName = scoreScan.StringColumn(10);
 			score->userId = scoreScan.StringColumn(11);
 			score->localScore = scoreScan.IntColumn(12);
+
+			score->hitWindowPerfect = scoreScan.IntColumn(13);
+			score->hitWindowGood = scoreScan.IntColumn(14);
+			score->hitWindowHold = scoreScan.IntColumn(15);
+			score->hitWindowMiss = scoreScan.IntColumn(16);
 
 			// Add difficulty to map and resort difficulties
 			auto diffIt = m_chartsByHash.find(score->chartHash);
@@ -1094,7 +1338,42 @@ private:
 			m_SortScores(diffIt->second);
 		}
 
+		// Select Practice setups
+		DBStatement practiceSetupScan = m_database.Query("SELECT rowid, chart_id, setup_title, loop_success, loop_fail, range_begin, range_end, fail_cond_type, fail_cond_value,"
+			"playback_speed, inc_speed_on_success, inc_speed, inc_streak, dec_speed_on_fail, dec_speed, min_playback_speed, max_rewind, max_rewind_measure FROM PracticeSetups");
 
+		while (practiceSetupScan.StepRow())
+		{
+			PracticeSetupIndex* practiceSetup = new PracticeSetupIndex();
+			practiceSetup->id = practiceSetupScan.IntColumn(0);
+			practiceSetup->chartId = practiceSetupScan.IntColumn(1);
+			practiceSetup->setupTitle = practiceSetupScan.StringColumn(2);
+			practiceSetup->loopSuccess = practiceSetupScan.IntColumn(3);
+			practiceSetup->loopFail = practiceSetupScan.IntColumn(4);
+			practiceSetup->rangeBegin = practiceSetupScan.IntColumn(5);
+			practiceSetup->rangeEnd = practiceSetupScan.IntColumn(6);
+			practiceSetup->failCondType = practiceSetupScan.IntColumn(7);
+			practiceSetup->failCondValue = practiceSetupScan.IntColumn(8);
+
+			practiceSetup->playbackSpeed = practiceSetupScan.DoubleColumn(9);
+			practiceSetup->incSpeedOnSuccess = practiceSetupScan.IntColumn(10);
+			practiceSetup->incSpeed = practiceSetupScan.DoubleColumn(11);
+			practiceSetup->incStreak = practiceSetupScan.IntColumn(12);
+			practiceSetup->decSpeedOnFail = practiceSetupScan.IntColumn(13);
+			practiceSetup->decSpeed = practiceSetupScan.DoubleColumn(14);
+			practiceSetup->minPlaybackSpeed = practiceSetupScan.DoubleColumn(15);
+			practiceSetup->maxRewind = practiceSetupScan.IntColumn(16);
+			practiceSetup->maxRewindMeasure = practiceSetupScan.IntColumn(17);
+
+			if (!m_charts.Contains(practiceSetup->chartId))
+			{
+				delete practiceSetup;
+				continue;
+			}
+
+			m_practiceSetups.Add(practiceSetup->id, practiceSetup);
+			m_practiceSetupsByChartId.Add(practiceSetup->chartId, practiceSetup);
+		}
 
 		m_outer.OnFoldersCleared.Call(m_folders);
 	}
@@ -1201,7 +1480,7 @@ private:
 					evt.action = Event::Added;
 				}
 
-				Logf("Discovered Chart [%s]", Logger::Info, f.first);
+				Logf("Discovered Chart [%s]", Logger::Severity::Info, f.first);
 				m_outer.OnSearchStatusUpdated.Call(Utility::Sprintf("Discovered Chart [%s]", f.first));
 				// Try to read map metadata
 				bool mapValid = false;
@@ -1248,7 +1527,7 @@ private:
 				{
 					if(!existing) // Never added
 					{
-						Logf("Skipping corrupted chart [%s]", Logger::Warning, f.first);
+						Logf("Skipping corrupted chart [%s]", Logger::Severity::Warning, f.first);
 						m_outer.OnSearchStatusUpdated.Call(Utility::Sprintf("Skipping corrupted chart [%s]", f.first));
 						if(evt.mapData)
 							delete evt.mapData;
@@ -1267,13 +1546,12 @@ private:
 		m_searching = false;
 	}
 
-
 };
 
 void MapDatabase::FinishInit()
 {
 	assert(!m_impl);
-	m_impl = new MapDatabase_Impl(*this);
+	m_impl = new MapDatabase_Impl(*this, m_transferScores);
 }
 MapDatabase::MapDatabase(bool postponeInit)
 {
@@ -1284,7 +1562,7 @@ MapDatabase::MapDatabase(bool postponeInit)
 }
 MapDatabase::MapDatabase()
 {
-	m_impl = new MapDatabase_Impl(*this);
+	m_impl = new MapDatabase_Impl(*this, true);
 }
 MapDatabase::~MapDatabase()
 {
@@ -1300,6 +1578,7 @@ bool MapDatabase::IsSearching() const
 }
 void MapDatabase::StartSearching()
 {
+	assert(m_impl);
 	m_impl->StartSearching();
 }
 void MapDatabase::PauseSearching()
@@ -1347,6 +1626,10 @@ Vector<String> MapDatabase::GetCollectionsForMap(int32 mapid)
 {
 	return m_impl->GetCollectionsForMap(mapid);
 }
+Vector<PracticeSetupIndex*> MapDatabase::GetOrAddPracticeSetups(int32 chartId)
+{
+	return m_impl->GetOrAddPracticeSetups(chartId);
+}
 void MapDatabase::AddOrRemoveToCollection(const String& name, int32 mapid)
 {
 	m_impl->AddOrRemoveToCollection(name, mapid);
@@ -1367,7 +1650,16 @@ void MapDatabase::AddScore(ScoreIndex* score)
 {
 	m_impl->AddScore(score);
 }
+void MapDatabase::UpdatePracticeSetup(PracticeSetupIndex* practiceSetup)
+{
+	m_impl->UpdateOrAddPracticeSetup(practiceSetup);
+}
 ChartIndex* MapDatabase::GetRandomChart()
 {
 	return m_impl->GetRandomChart();
+}
+void MapDatabase::SetChartUpdateBehavior(bool transferScores) {
+	m_transferScores = transferScores;
+	if (m_impl != NULL)
+		m_impl->SetChartUpdateBehavior(transferScores);
 }

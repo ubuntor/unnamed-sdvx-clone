@@ -74,7 +74,7 @@ private:
 	{
 		if (luaL_dofile(lua, Path::Normalize(path + ".lua").c_str()))
 		{
-			Logf("Lua error: %s", Logger::Warning, lua_tostring(lua, -1));
+			Logf("Lua error: %s", Logger::Severity::Warning, lua_tostring(lua, -1));
 			return false;
 		}
 		String matPath = path + ".fs";
@@ -97,10 +97,16 @@ public:
 		String skin = g_gameConfig.GetString(GameConfigKeys::Skin);
 		lua = luaL_newstate();
 
-		auto openLib = [this](char* name, lua_CFunction lib)
+		auto openLib = [this](const char* name, lua_CFunction lib)
 		{
 			luaL_requiref(lua, name, lib, 1);
 			lua_pop(lua, 1);
+		};
+
+
+		auto errorOnLib = [this](const char* name)
+		{
+			luaL_dostring(lua, (String(name) + " = {}; setmetatable(" + String(name) + ", {__index = function() error(\"Song background cannot access the '" + name + "' library\") end})").c_str());
 		};
 
 		//open libs
@@ -111,8 +117,38 @@ public:
 		openLib(LUA_STRLIBNAME, luaopen_string);
 		openLib(LUA_MATHLIBNAME, luaopen_math);
 
+		// Add error messages to libs which are not allowed
+		errorOnLib(LUA_COLIBNAME);
+		errorOnLib(LUA_IOLIBNAME);
+		errorOnLib(LUA_OSLIBNAME);
+		errorOnLib(LUA_UTF8LIBNAME);
+		errorOnLib(LUA_DBLIBNAME);
+
+		// Clean up the 'package' library so we can't load dlls
+		lua_getglobal(lua, "package");
+
+		// Remove C searchers so we can't load dlls
+		lua_getfield(lua, -1, "searchers"); // Get the searcher list (-1)
+		lua_pushnil(lua);
+		lua_rawseti(lua, -2, 4); // C root
+		lua_pushnil(lua);
+		lua_rawseti(lua, -2, 3); // C path
+		lua_pop(lua, 1);  /* remove searchers */
+
+		// Remove loadlib so we can't load dlls
+		lua_pushnil(lua);
+		lua_setfield(lua, -2, "loadlib");
+
+		// Remove cpath so we won't try and load anything from it
+		lua_pushstring(lua, "");
+		lua_setfield(lua, -2, "cpath");
+
+		lua_pop(lua, 1);  /* remove package */
+
 		g_application->SetLuaBindings(lua);
 		game->SetInitialGameplayLua(lua);
+		// We have to do this seperately bc package is already defined
+		luaL_dostring(lua, "setmetatable(package, {__index = function() error(\"Song background cannot access the 'package' library\") end})");
 
 		String bindName = foreground ? "foreground" : "background";
 
@@ -156,7 +192,7 @@ public:
 		if (m_init(path))
 			return true;
 
-		Logf("Failed to load %s at path: \"%s\" Attempting to load fallback instead.", Logger::Warning, foreground ? "foreground" : "background", folderPath);
+		Logf("Failed to load %s at path: \"%s\" Attempting to load fallback instead.", Logger::Severity::Warning, foreground ? "foreground" : "background", folderPath);
 		path = Path::Absolute("skins/" + skin + "/backgrounds/fallback/");
 		folderPath = path;
 		path = Path::Normalize(path + fname);
@@ -191,7 +227,6 @@ public:
 
 		clearTransition = Math::Clamp(clearTransition, 0.0f, 1.0f);
 
-		Vector3 trackEndWorld = Vector3(0.0f, 25.0f, 0.0f);
 		Vector2i screenCenter = game->GetCamera().GetScreenCenter();
 
 		tilt = { game->GetCamera().GetActualRoll(), game->GetCamera().GetBackgroundSpin() };
@@ -215,7 +250,7 @@ public:
 			lua_pushnumber(lua, deltaTime);
 			if (lua_pcall(lua, 1, 0, 0) != 0)
 			{
-				Logf("Lua error: %s", Logger::Error, lua_tostring(lua, -1));
+				Logf("Lua error: %s", Logger::Severity::Error, lua_tostring(lua, -1));
 				g_gameWindow->ShowMessageBox("Lua Error", lua_tostring(lua, -1), 0);
 				errored = true;
 			}

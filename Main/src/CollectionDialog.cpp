@@ -202,7 +202,7 @@ void CollectionDialog::Render(float deltaTime)
 	lua_pushnumber(m_lua, deltaTime);
 	if (lua_pcall(m_lua, 1, 1, 0) != 0)
 	{
-		Logf("Lua error: %s", Logger::Error, lua_tostring(m_lua, -1));
+		Logf("Lua error: %s", Logger::Severity::Error, lua_tostring(m_lua, -1));
 		g_gameWindow->ShowMessageBox("Lua Error", lua_tostring(m_lua, -1), 0);
 		Close();
 		m_Finish();
@@ -217,10 +217,12 @@ void CollectionDialog::Render(float deltaTime)
 	}
 }
 
-void CollectionDialog::Open(const ChartIndex& song)
+void CollectionDialog::Open(const ChartIndex* song)
 {
+	if (song == nullptr)
+		return;
 	m_active = true;
-	m_currentId = song.folderId;
+	m_currentId = song->folderId;
 	m_nameEntry->SetActive(false);
 	m_nameEntry->Reset();
 
@@ -228,15 +230,15 @@ void CollectionDialog::Open(const ChartIndex& song)
 	lua_getglobal(m_lua, "dialog");
 
 	lua_pushstring(m_lua, "title");
-	lua_pushstring(m_lua, *song.title);
+	lua_pushstring(m_lua, *song->title);
 	lua_settable(m_lua, -3);
 
 	lua_pushstring(m_lua, "artist");
-	lua_pushstring(m_lua, *song.artist);
+	lua_pushstring(m_lua, *song->artist);
 	lua_settable(m_lua, -3);
 
 	lua_pushstring(m_lua, "jacket");
-	lua_pushstring(m_lua, *song.jacket_path);
+	lua_pushstring(m_lua, *song->jacket_path);
 	lua_settable(m_lua, -3);
 
 	m_closing = false;
@@ -278,7 +280,7 @@ void CollectionDialog::Open(const ChartIndex& song)
 	{
 		if (lua_pcall(m_lua, 0, 0, 0) != 0)
 		{
-			Logf("Lua error on open: %s", Logger::Error, lua_tostring(m_lua, -1));
+			Logf("Lua error on open: %s", Logger::Severity::Error, lua_tostring(m_lua, -1));
 			g_gameWindow->ShowMessageBox("Lua Error on open", lua_tostring(m_lua, -1), 0);
 		}
 	}
@@ -351,7 +353,7 @@ void CollectionDialog::m_AdvanceSelection(int steps)
 		lua_pushnumber(m_lua, (int32)steps);
 		if (lua_pcall(m_lua, 1, 0, 0) != 0)
 		{
-			Logf("Lua error on advance_selection: %s", Logger::Error, lua_tostring(m_lua, -1));
+			Logf("Lua error on advance_selection: %s", Logger::Severity::Error, lua_tostring(m_lua, -1));
 			g_gameWindow->ShowMessageBox("Lua Error on advance_selection", lua_tostring(m_lua, -1), 0);
 		}
 	}
@@ -369,7 +371,7 @@ void CollectionDialog::m_OnButtonPressed(Input::Button button)
 		lua_pushnumber(m_lua, (int32)button);
 		if (lua_pcall(m_lua, 1, 0, 0) != 0)
 		{
-			Logf("Lua error on button_pressed: %s", Logger::Error, lua_tostring(m_lua, -1));
+			Logf("Lua error on button_pressed: %s", Logger::Severity::Error, lua_tostring(m_lua, -1));
 			g_gameWindow->ShowMessageBox("Lua Error on button_pressed", lua_tostring(m_lua, -1), 0);
 		}
 	}

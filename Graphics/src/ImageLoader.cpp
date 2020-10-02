@@ -9,7 +9,7 @@
 #endif
 
 // HAVE_STDDEF_H redefinition
-#pragma warning(disable:4005)
+//#pragma warning(disable:4005)
 #include "jpeglib.h"
 
 namespace Graphics
@@ -142,7 +142,7 @@ namespace Graphics
 		bool Load(ImageRes* pImage, Buffer& b)
 		{
 			// Check for PNG based on first 4 bytes
-			if (*(uint32*)b.data() == (uint32&)"\x89PNG")
+			if (std::memcmp(b.data(), "\x89PNG", 4) == 0)
 				return LoadPNG(pImage, b);
 			else // jay-PEG ?
 				return LoadJPEG(pImage, b);

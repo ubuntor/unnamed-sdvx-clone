@@ -23,6 +23,11 @@
 #include <memory.h>
 #include <cinttypes>
 
+#include <memory>
+#include <functional>
+
+#include <queue>
+
 // TODO: reference additional headers your program requires here
 #include <Shared/Shared.hpp>
 
@@ -40,5 +45,13 @@
 #include <Graphics/Font.hpp>
 using namespace Graphics;
 
+extern "C"
+{
+#include "lua.h"
+#include "lauxlib.h"
+}
+
+#include "BasicDefinitions.hpp"
+
 // Asset loading macro
-#define CheckedLoad(__stmt) if(!(__stmt)){Logf("Failed to load asset [%s]", Logger::Error, #__stmt); return false; }
+#define CheckedLoad(__stmt) if(!(__stmt)){Logf("Failed to load asset [%s]", Logger::Severity::Error, #__stmt); return false; }

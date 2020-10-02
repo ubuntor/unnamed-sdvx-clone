@@ -14,6 +14,7 @@ namespace Graphics
 	class IParticleParameter
 	{
 	public:
+		virtual ~IParticleParameter() = default;
 		// Used to initialize a starting attribute
 		virtual T Init(float systemTime) { return Sample(systemTime); }
 		// Used to process over lifetime events
@@ -23,7 +24,7 @@ namespace Graphics
 	};
 
 	// Macro for implementing the Duplicate() function
-#define IMPLEMENT_DUPLICATE(__type, __self) IParticleParameter<__type>* Duplicate() const { return new __self(*this); }
+#define IMPLEMENT_DUPLICATE(__type, __self) IParticleParameter<__type>* Duplicate() const override { return new __self(*this); }
 
 	/* A constant value at all times */
 	template<typename T>
@@ -31,11 +32,11 @@ namespace Graphics
 	{
 	public:
 		PPConstant(const T& val) : val(val) {};
-		virtual T Sample(float in) override
+		T Sample(float in) override
 		{
 			return val;
 		}
-		virtual T GetMax()
+		T GetMax() override
 		{
 			return val;
 		}
@@ -50,15 +51,15 @@ namespace Graphics
 	{
 	public:
 		PPRandomRange(const T& min, const T& max) : min(min), max(max) { delta = max - min; };
-		virtual T Init(float systemTime) override
+		T Init(float systemTime) override
 		{
 			return Sample(Random::Float());
 		}
-		virtual T Sample(float in) override
+		T Sample(float in) override
 		{
 			return (max - min) * in + min;
 		}
-		virtual T GetMax()
+		T GetMax() override
 		{
 			return Math::Max(max, min);
 		}
@@ -74,11 +75,11 @@ namespace Graphics
 	{
 	public:
 		PPRange(const T& min, const T& max) : min(min), max(max) { delta = max - min; };
-		virtual T Sample(float in) override
+		T Sample(float in) override
 		{
 			return (max - min) * in + min;
 		}
-		virtual T GetMax()
+		T GetMax() override
 		{
 			return Math::Max(max, min);
 		}
@@ -98,7 +99,7 @@ namespace Graphics
 			delta = max - min;
 			rangeOut = 1.0f - fadeIn;
 		};
-		virtual T Sample(float in) override
+		T Sample(float in) override
 		{
 			if(in < fadeIn)
 			{
@@ -109,7 +110,7 @@ namespace Graphics
 				return (in - fadeIn) / rangeOut * (max - min) + min;
 			}
 		}
-		virtual T GetMax()
+		T GetMax() override
 		{
 			return Math::Max(max, min);
 		}
@@ -128,11 +129,11 @@ namespace Graphics
 		PPSphere(float radius) : radius(radius)
 		{
 		}
-		virtual Vector3 Sample(float in) override
+		Vector3 Sample(float in) override
 		{
 			return Vector3(Random::FloatRange(-1.0f, 1.0f), Random::FloatRange(-1.0f, 1.0f), Random::FloatRange(-1.0f, 1.0f)) * radius;
 		}
-		virtual Vector3 GetMax()
+		Vector3 GetMax() override
 		{
 			return Vector3(radius);
 		}
@@ -148,7 +149,7 @@ namespace Graphics
 		PPBox(Vector3 size) : size(size)
 		{
 		}
-		virtual Vector3 Sample(float in) override
+		Vector3 Sample(float in) override
 		{
 			Vector3 offset = -size * 0.5f;
 			offset.x += Random::Float() * size.x;
@@ -156,7 +157,7 @@ namespace Graphics
 			offset.z += Random::Float() * size.z;
 			return offset;
 		}
-		virtual Vector3 GetMax()
+		Vector3 GetMax() override
 		{
 			return size;
 		}
@@ -171,9 +172,13 @@ namespace Graphics
 	*/
 	class PPCone : public IParticleParameter<Vector3>
 	{
+	private:
+		float lengthMin, lengthMax;
+		float angle;
+		Transform mat;
 	public:
 		PPCone(Vector3 dir, float angle, float lengthMin, float lengthMax)
-			: angle(angle * Math::degToRad), lengthMin(lengthMin), lengthMax(lengthMax)
+			: lengthMin(lengthMin), lengthMax(lengthMax), angle(angle * Math::degToRad)
 		{
 			Vector3 normal = dir.Normalized();
 			Vector3 tangent = Vector3(normal.y, -normal.x, normal.z);
@@ -205,15 +210,12 @@ namespace Graphics
 			v *= length;
 			return v;
 		}
-		virtual Vector3 GetMax()
+		Vector3 GetMax() override
 		{
 			return Vector3(0, 0, lengthMax);
 		}
 		IMPLEMENT_DUPLICATE(Vector3, PPCone);
-	private:
-		float lengthMin, lengthMax;
-		float angle;
-		Transform mat;
+
 	};
 
 #undef IMPLEMENT_DUPLICATE

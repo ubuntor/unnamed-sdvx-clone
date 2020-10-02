@@ -6,6 +6,7 @@
 #include "File.hpp"
 
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <dirent.h>
 
 static Vector<FileInfo> _ScanFiles(String rootFolder, String extFilter, bool recurse, bool* interrupt)
@@ -13,7 +14,7 @@ static Vector<FileInfo> _ScanFiles(String rootFolder, String extFilter, bool rec
 	Vector<FileInfo> ret;
 	if(!Path::IsDirectory(rootFolder))
 	{
-		Logf("Can't run ScanFiles, \"%s\" is not a folder", Logger::Warning, rootFolder);
+		Logf("Can't run ScanFiles, \"%s\" is not a folder", Logger::Severity::Warning, rootFolder);
 		return ret;
 	}
 
@@ -54,8 +55,14 @@ static Vector<FileInfo> _ScanFiles(String rootFolder, String extFilter, bool rec
                 info.fullPath = Path::Normalize(searchPath + Path::sep + filename);
 				info.lastWriteTime = File::GetLastWriteTime(info.fullPath); // linux doesn't provide this timestamp in the directory entry
 				info.type = FileType::Regular;
-
-				if(ent->d_type == DT_DIR)
+				bool is_dir = (ent->d_type == DT_DIR);
+				if (ent->d_type == DT_UNKNOWN || ent->d_type == DT_LNK)
+				{
+					struct stat buffer;
+					stat(info.fullPath.c_str(), &buffer);
+					is_dir = S_ISDIR(buffer.st_mode);
+				}
+				if(is_dir)
 				{
 					if(recurse)
 					{

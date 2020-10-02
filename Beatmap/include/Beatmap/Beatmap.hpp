@@ -164,6 +164,14 @@ public:
 	// Retrieves audio effect settings for a given filter effect id
 	AudioEffect GetFilter(EffectType type) const;
 
+	// Get the timing of the last (non-event) object
+	MapTime GetLastObjectTime() const;
+
+	// Measure -> Time
+	MapTime GetMapTimeFromMeasureInd(int measure) const;
+	// Time -> Measure
+	int GetMeasureIndFromMapTime(MapTime time) const;
+
 private:
 	bool m_ProcessKShootMap(BinaryStream& input, bool metadataOnly);
 	bool m_ProcessKSON(BinaryStream& input, bool metadataOnly);
@@ -180,5 +188,4 @@ private:
 	Vector<String> m_samplePaths;
 	Vector<String> m_switchablePaths;
 	BeatmapSettings m_settings;
-	
 };

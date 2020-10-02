@@ -119,16 +119,30 @@ struct MultiParamRange
 		r.isRange = isRange;
 		return r;
 	}
-	EffectParam<EffectDuration> ToDurationParam()
+	EffectParam<EffectDuration> ToDurationParam(bool isAbsolute)
 	{
-		auto r = params[0].type == MultiParam::Float ? EffectParam<EffectDuration>(params[0].fval, params[1].fval) : EffectParam<EffectDuration>(params[0].ival, params[1].ival);
+		EffectParam<EffectDuration> r;
+		if (isAbsolute)
+		{
+			if (params[0].type == MultiParam::Float)
+			{
+				r = EffectParam<EffectDuration>((int)(1000.f * params[0].fval), (int)(1000.f * params[1].fval));
+			}
+			else
+			{
+				r = EffectParam<EffectDuration>(params[0].ival, params[1].ival);
+			}
+		}
+		else {
+			r = params[0].type == MultiParam::Float ? EffectParam<EffectDuration>(params[0].fval, params[1].fval) : EffectParam<EffectDuration>(params[0].ival, params[1].ival);
+		}
 		r.isRange = isRange;
 		return r;
 	}
 	EffectParam<int32> ToSamplesParam()
 	{
 		EffectParam<int32> r;
-		if (params[0].type == MultiParam::Int)
+		if (params[0].type == MultiParam::Int || params[0].type == MultiParam::Samples)
 			r = EffectParam<int32>(params[0].ival, params[1].ival);
 		r.isRange = isRange;
 		return r;
@@ -186,7 +200,7 @@ AudioEffect ParseCustomEffect(const KShootEffectDefinition &def, Vector<String> 
 			const EffectType *type = defaultEffects.FindEffectType(s.second);
 			if (!type)
 			{
-				Logf("Unknown base effect type for custom effect type: %s", Logger::Warning, s.second);
+				Logf("Unknown base effect type for custom effect type: %s", Logger::Severity::Warning, s.second);
 				continue;
 			}
 			effect = AudioEffect::GetDefault(*type);
@@ -235,7 +249,7 @@ AudioEffect ParseCustomEffect(const KShootEffectDefinition &def, Vector<String> 
 				MultiParamRange pr = {ParseParam(a), ParseParam(b)};
 				if (pr.params[0].type != pr.params[1].type)
 				{
-					Logf("Non matching parameters types \"[%s, %s]\" for key: %s", Logger::Warning, s.first, param, s.first);
+					Logf("Non matching parameters types \"[%s, %s]\" for key: %s", Logger::Severity::Warning, s.first, param, s.first);
 					continue;
 				}
 				params.Add(s.first, pr);
@@ -249,7 +263,7 @@ AudioEffect ParseCustomEffect(const KShootEffectDefinition &def, Vector<String> 
 
 	if (!typeSet)
 	{
-		Logf("Type not set for custom effect type: %s", Logger::Warning, def.typeName);
+		Logf("Type not set for custom effect type: %s", Logger::Severity::Warning, def.typeName);
 		return effect;
 	}
 
@@ -260,11 +274,11 @@ AudioEffect ParseCustomEffect(const KShootEffectDefinition &def, Vector<String> 
 			target = param->ToFloatParam();
 		}
 	};
-	auto AssignDurationIfSet = [&](EffectParam<EffectDuration> &target, const String &name) {
+	auto AssignDurationIfSet = [&](EffectParam<EffectDuration> &target, const String &name, bool absolute) {
 		auto *param = params.Find(name);
 		if (param)
 		{
-			target = param->ToDurationParam();
+			target = param->ToDurationParam(absolute);
 		}
 	};
 	auto AssignSamplesIfSet = [&](EffectParam<int32> &target, const String &name) {
@@ -295,29 +309,31 @@ AudioEffect ParseCustomEffect(const KShootEffectDefinition &def, Vector<String> 
 		AssignSamplesIfSet(effect.bitcrusher.reduction, "amount");
 		break;
 	case EffectType::Echo:
-		AssignDurationIfSet(effect.duration, "waveLength");
+		AssignDurationIfSet(effect.duration, "waveLength", false);
 		AssignFloatIfSet(effect.echo.feedback, "feedbackLevel");
 		break;
 	case EffectType::Flanger:
-		AssignDurationIfSet(effect.duration, "period");
+		AssignDurationIfSet(effect.duration, "period", true);
+		AssignIntIfSet(effect.flanger.depth, "depth");
+		AssignIntIfSet(effect.flanger.offset, "delay");
 		break;
 	case EffectType::Gate:
-		AssignDurationIfSet(effect.duration, "waveLength");
+		AssignDurationIfSet(effect.duration, "waveLength", false);
 		AssignFloatIfSet(effect.gate.gate, "rate");
 		break;
 	case EffectType::Retrigger:
-		AssignDurationIfSet(effect.duration, "waveLength");
+		AssignDurationIfSet(effect.duration, "waveLength", false);
 		AssignFloatIfSet(effect.retrigger.gate, "rate");
-		AssignDurationIfSet(effect.retrigger.reset, "updatePeriod");
+		AssignDurationIfSet(effect.retrigger.reset, "updatePeriod", false);
 		break;
 	case EffectType::Wobble:
-		AssignDurationIfSet(effect.duration, "waveLength");
+		AssignDurationIfSet(effect.duration, "waveLength", false);
 		AssignFloatIfSet(effect.wobble.min, "loFreq");
 		AssignFloatIfSet(effect.wobble.max, "hiFreq");
 		AssignFloatIfSet(effect.wobble.q, "Q");
 		break;
 	case EffectType::TapeStop:
-		AssignDurationIfSet(effect.duration, "speed");
+		AssignDurationIfSet(effect.duration, "speed", false);
 		break;
 	case EffectType::SwitchAudio:
 		AssignIntIfSet(effect.switchaudio.index, "index");
@@ -389,7 +405,7 @@ bool Beatmap::m_ProcessKShootMap(BinaryStream &input, bool metadataOnly)
 			if (foundType)
 				type = *foundType;
 			else
-				Logf("[KSH]Unknown filter type: %s", Logger::Warning, str);
+				Logf("[KSH]Unknown filter type: %s", Logger::Severity::Warning, str);
 		}
 		return type;
 	};
@@ -536,6 +552,7 @@ bool Beatmap::m_ProcessKShootMap(BinaryStream &input, bool metadataOnly)
 	ZoomControlPoint *firstControlPoints[5] = {nullptr};
 	MapTime lastMapTime = 0;
 	uint32 currentTick = 0;
+	ZoomControlPoint* lastManualTiltPoint = nullptr;
 	for (KShootMap::TickIterator it(kshootMap); it; ++it)
 	{
 		const KShootBlock &block = it.GetCurrentBlock();
@@ -594,7 +611,7 @@ bool Beatmap::m_ProcessKShootMap(BinaryStream &input, bool metadataOnly)
 				const EffectType *type = effectTypeMap.FindEffectType(effectName);
 				if (type == nullptr)
 				{
-					Logf("Invalid custom effect name in ksh map: %s", Logger::Warning, effectName);
+					Logf("Invalid custom effect name in ksh map: %s", Logger::Severity::Warning, effectName);
 					return EffectType::None;
 				}
 
@@ -610,6 +627,25 @@ bool Beatmap::m_ProcessKShootMap(BinaryStream &input, bool metadataOnly)
 					else
 						paramsOut[0] = atoi(*effectParams);
 				}
+				else //set default params
+				{
+					if (*type < EffectType::UserDefined0) {
+						switch (*type)
+						{
+						case EffectType::Flanger:
+							paramsOut[0] = 45;
+							paramsOut[1] = 15;
+							break;
+
+						default:
+							break;
+						}
+					}
+					else {
+						m_customEffects.at(*type).SetDefaultEffectParams(paramsOut);
+					}
+				}
+
 				return *type;
 			};
 
@@ -666,6 +702,7 @@ bool Beatmap::m_ProcessKShootMap(BinaryStream &input, bool metadataOnly)
 			{
 				// Inser filter type change event
 				EventObjectState *evt = new EventObjectState();
+				evt->interTickIndex = tickSettingIndex;
 				evt->time = mapTime;
 				evt->key = EventKey::LaserEffectType;
 				evt->data.effectVal = ParseFilterType(p.second);
@@ -676,6 +713,7 @@ bool Beatmap::m_ProcessKShootMap(BinaryStream &input, bool metadataOnly)
 				// Inser filter type change event
 				float gain = (float)atol(*p.second) / 100.0f;
 				EventObjectState *evt = new EventObjectState();
+				evt->interTickIndex = tickSettingIndex;
 				evt->time = mapTime;
 				evt->key = EventKey::LaserEffectMix;
 				evt->data.floatVal = gain;
@@ -685,6 +723,7 @@ bool Beatmap::m_ProcessKShootMap(BinaryStream &input, bool metadataOnly)
 			{
 				float vol = (float)atol(*p.second) / 100.0f;
 				EventObjectState *evt = new EventObjectState();
+				evt->interTickIndex = tickSettingIndex;
 				evt->time = mapTime;
 				evt->key = EventKey::LaserEffectMix;
 				evt->data.floatVal = vol;
@@ -779,18 +818,10 @@ bool Beatmap::m_ProcessKShootMap(BinaryStream &input, bool metadataOnly)
 					ZoomControlPoint *point = new ZoomControlPoint();
 					point->time = mapTime;
 					point->index = 3;
-					point->zoom = atof(*p.second) / -(360.0 / 10.0);
-
-					if (fabsf(point->zoom) > 10 / 360.f)
-					{
-						// Convert KSM manual tilt values above 100 to a scale such that
-						// 150 = 17.5 and 200 = 25 degrees (corresponding to BIGGER and BIGGEST)
-						// Should only be applied to .ksh charts
-						float angle = fabsf(point->zoom) * 36.f; // Angle but divided by ten for easier calculation
-						point->zoom = Math::Sign(point->zoom) * ((((angle - 1) * 0.5f) + angle) / 36.f);
-					}
-
-					m_zoomControlPoints.Add(point);
+					point->zoom = atof(*p.second) * -(10.0 / 360.0);
+					point->instant = lastManualTiltPoint ? lastManualTiltPoint->time == point->time : false;
+					
+					lastManualTiltPoint = m_zoomControlPoints.Add(point);
 					CHECK_FIRST;
 
 					isManualTilt = true;
@@ -869,7 +900,7 @@ bool Beatmap::m_ProcessKShootMap(BinaryStream &input, bool metadataOnly)
 			}
 			else
 			{
-				Logf("[KSH]Unkown map parameter at %d:%d: %s", Logger::Warning, it.GetTime().block, it.GetTime().tick, p.first);
+				Logf("[KSH]Unkown map parameter at %d:%d: %s", Logger::Severity::Warning, it.GetTime().block, it.GetTime().tick, p.first);
 			}
 			tickSettingIndex++;
 		}

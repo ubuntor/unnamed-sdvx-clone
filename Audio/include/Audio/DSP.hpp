@@ -11,6 +11,7 @@ public:
 	// -1 to 1 LR pan value
 	float panning = 0.0f;
 	virtual void Process(float* out, uint32 numSamples);
+	virtual const char* GetName() const { return "PanDSP"; }
 };
 
 // Biquad Filter
@@ -19,6 +20,7 @@ public:
 class BQFDSP : public DSP
 {
 public:
+	BQFDSP(uint32 sampleRate);
 	float b0 = 1.0f;
 	float b1 = 0.0f;
 	float b2 = 0.0f;
@@ -27,6 +29,7 @@ public:
 	float a2 = 0.0f;
 
 	virtual void Process(float* out, uint32 numSamples);
+	virtual const char* GetName() const { return "BQFDSP"; }
 
 	// Sets the filter parameters
 	void SetPeaking(float q, float freq, float gain);
@@ -49,8 +52,10 @@ private:
 class CombinedFilterDSP : public DSP
 {
 public:
+	CombinedFilterDSP(uint32 sampleRate);
 	void SetLowPass(float q, float freq, float peakQ, float peakGain);
 	void SetHighPass(float q, float freq, float peakQ, float peakGain);
+	virtual const char* GetName() const { return "CombinedFilterDSP"; }
 
 	virtual void Process(float* out, uint32 numSamples);
 private:
@@ -62,8 +67,11 @@ private:
 class LimiterDSP : public DSP
 {
 public:
+	LimiterDSP(uint32 sampleRate);
+
 	float releaseTime = 0.1f;
 	virtual void Process(float* out, uint32 numSamples);
+	virtual const char* GetName() const { return "LimiterDSP"; }
 private:
 	float m_currentMaxVolume = 1.0f;
 	float m_currentReleaseTimer = releaseTime;
@@ -72,9 +80,12 @@ private:
 class BitCrusherDSP : public DSP
 {
 public:
+	BitCrusherDSP(uint32 sampleRate);
+
 	// Duration of samples, <1 = disable
 	void SetPeriod(float period = 0);
 	virtual void Process(float* out, uint32 numSamples);
+	virtual const char* GetName() const { return "BitCrusherDSP"; }
 private:
 	uint32 m_period = 1;
 	uint32 m_increment = 0;
@@ -85,6 +96,8 @@ private:
 class GateDSP : public DSP
 {
 public:
+	GateDSP(uint32 sampleRate);
+
 	// The amount of time for a single cycle in samples
 	void SetLength(double length);
 	void SetGating(float gating);
@@ -93,6 +106,7 @@ public:
 	float low = 0.1f;
 
 	virtual void Process(float* out, uint32 numSamples);
+	virtual const char* GetName() const { return "GateDSP"; }
 private:
 	float m_gating = 0.5f;
 	uint32 m_length = 0;
@@ -105,33 +119,37 @@ private:
 class TapeStopDSP : public DSP
 {
 public:
+	TapeStopDSP(uint32 sampleRate);
+
 	void SetLength(double length);
 
 	virtual void Process(float* out, uint32 numSamples);
+	virtual const char* GetName() const { return "TapeStopDSP"; }
 private:
 	uint32 m_length = 0;
 	Vector<float> m_sampleBuffer;
 	float m_sampleIdx = 0.0f;
-	uint32 m_lastSample = 0;
 	uint32 m_currentSample = 0;
 };
 
 class RetriggerDSP : public DSP
 {
 public:
+	RetriggerDSP(uint32 sampleRate);
+
 	void SetLength(double length);
 	void SetResetDuration(uint32 resetDuration);
 	void SetGating(float gating);
 	void SetMaxLength(uint32 length);
 
 	virtual void Process(float* out, uint32 numSamples);
+	virtual const char* GetName() const { return "RetriggerDSP"; }
 private:
 	float m_gating = 0.75f;
 	uint32 m_length = 0;
 	uint32 m_gateLength = 0;
 	uint32 m_resetDuration = 0;
 	Vector<float> m_sampleBuffer;
-	uint32 m_loops = 0;
 	uint32 m_currentSample = 0;
 	bool m_bufferReserved = false;
 };
@@ -139,6 +157,8 @@ private:
 class WobbleDSP : public BQFDSP
 {
 public:
+	WobbleDSP(uint32 sampleRate);
+
 	void SetLength(double length);
 
 	// Frequency range
@@ -147,6 +167,7 @@ public:
 	float q = 1.414f;
 
 	virtual void Process(float* out, uint32 numSamples);
+	virtual const char* GetName() const { return "WobbleDSP"; }
 private:
 	uint32 m_length;
 	uint32 m_currentSample = 0;
@@ -156,6 +177,8 @@ private:
 class PhaserDSP : public DSP
 { 
 public:
+	PhaserDSP(uint32 sampleRate);
+
 	uint32 time = 0;
 
 	// Frequency range
@@ -167,6 +190,7 @@ public:
 	void SetLength(double length);
 
 	virtual void Process(float* out, uint32 numSamples);
+	virtual const char* GetName() const { return "PhaserDSP"; }
 
 private:
 	uint32 m_length = 0;
@@ -186,10 +210,13 @@ private:
 class FlangerDSP : public DSP
 {
 public:
+	FlangerDSP(uint32 sampleRate);
+
 	void SetLength(double length);
 	void SetDelayRange(uint32 min, uint32 max);
 
 	virtual void Process(float* out, uint32 numSamples);
+	virtual const char* GetName() const { return "FlangerDSP"; }
 private:
 	uint32 m_length = 0;
 
@@ -206,11 +233,14 @@ private:
 class EchoDSP : public DSP
 {
 public:
+	EchoDSP(uint32 sampleRate);
+
 	void SetLength(double length);
 
 	float feedback = 0.6f;
 
 	virtual void Process(float* out, uint32 numSamples);
+	virtual const char* GetName() const { return "EchoDSP"; }
 private:
 	uint32 m_bufferLength = 0;
 	size_t m_bufferOffset = 0;
@@ -222,6 +252,8 @@ private:
 class SidechainDSP : public DSP
 {
 public:
+	SidechainDSP(uint32 sampleRate);
+
 	// Set sidechain length in samples
 	void SetLength(double length);
 
@@ -231,6 +263,7 @@ public:
 	Interpolation::CubicBezier curve;
 
 	virtual void Process(float* out, uint32 numSamples);
+	virtual const char* GetName() const { return "SidechainDSP"; }
 private:
 	uint32 m_length = 0;
 	size_t m_time = 0;
@@ -239,13 +272,15 @@ private:
 class PitchShiftDSP : public DSP
 {
 public:
+	PitchShiftDSP(uint32 sampleRate);
+
 	// Pitch change amount
 	float amount = 0.0f;
 
-	PitchShiftDSP();
 	~PitchShiftDSP();
 
 	virtual void Process(float* out, uint32 numSamples);
+	virtual const char* GetName() const { return "PitchShiftDSP"; }
 private:
 	class PitchShiftDSP_Impl* m_impl;
 };

@@ -17,7 +17,29 @@
 //	2147483648	ms
 //	~2147483	sec
 //	~35791		min
-typedef int32 MapTime;
+using MapTime = int32;
+
+struct MapTimeRange
+{
+	constexpr MapTimeRange() noexcept : begin(0), end(0) {}
+	explicit constexpr MapTimeRange(MapTime begin) noexcept : begin(begin), end(0) {}
+	constexpr MapTimeRange(MapTime begin, MapTime end) noexcept : begin(begin), end(end) {}
+
+	constexpr MapTimeRange(const MapTimeRange&) noexcept = default;
+	constexpr MapTimeRange(MapTimeRange&&) noexcept = default;
+
+	constexpr MapTimeRange& operator= (const MapTimeRange&) noexcept = default;
+	constexpr MapTimeRange& operator= (MapTimeRange&&) noexcept = default;
+
+	constexpr bool HasEnd() const noexcept { return begin < end; }
+	constexpr MapTime Length() const noexcept { return HasEnd() ? end - begin : 0; }
+	constexpr MapTime Length(const MapTime defaultEnd) const noexcept { return HasEnd() ? end - begin : defaultEnd - begin; }
+	constexpr bool Includes(const MapTime t, const bool includingEnd = false) const noexcept { return begin <= t && (!HasEnd() || (includingEnd ? t <= end : t < end)); }
+	constexpr bool Includes(const MapTimeRange& other) const noexcept { return Includes(other.begin) && (other.HasEnd() ? Includes(other.end, true) : !HasEnd());}
+	constexpr bool Overlaps(const MapTimeRange& other) const noexcept { if (begin <= other.begin) return Includes(other.begin); else return other.Includes(begin); }
+
+	MapTime begin, end;
+};
 
 // Type enum for map object
 enum class ObjectType : uint8
@@ -279,7 +301,7 @@ struct TimingPoint
 	double GetBPM() const { return 60000.0 / beatDuration; }
 
 	// Position in ms when this timing point appears
-	MapTime time;
+	MapTime time = 0;
 	// Beat duration of a 4th note in milliseconds
 	//	this is a double so the least precision is lost
 	//	can be cast back to integer format once is has been multiplied by the amount of beats you want the length of.
@@ -287,7 +309,7 @@ struct TimingPoint
 	double beatDuration;
 	// Upper part of the time signature
 	// how many beats per bar
-	uint8 numerator;
+	uint8 numerator = 4;
 	// Lower part of the time signature
 	// the note value (4th, 3th, 8th notes, etc.) for a beat
 	uint8 denominator = 4;
@@ -315,6 +337,8 @@ struct ZoomControlPoint
 	// in the range -1 to 1
 	// 1 being fully zoomed in
 	float zoom = 0.0f;
+	// Used to check if a manual tilt assignment is instant
+	bool instant = false;
 };
 
 // Chart stop object

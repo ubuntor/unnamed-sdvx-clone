@@ -2,6 +2,7 @@
 #include "GameConfig.hpp"
 
 #include "Shared/Log.hpp"
+#include "HitStat.hpp"
 
 inline static void ConvertKeyCodeToScanCode(GameConfig& config, std::vector<GameConfigKeys> keys)
 {
@@ -27,7 +28,7 @@ inline static void ConvertKeyCodeToScanCode(GameConfig& config, std::vector<Game
 
 			const String& fieldName = Enum_GameConfigKeys::ToString(key);
 
-			Logf("Unable to convert key \"%s\" (%d) into scancode, for config field \"%s\".", Logger::Error, keyName, keycode, fieldName.c_str());
+			Logf("Unable to convert key \"%s\" (%d) into scancode, for config field \"%s\".", Logger::Severity::Error, keyName, keycode, fieldName.c_str());
 			config.Set(key, -1);
 		}
 	}
@@ -46,8 +47,8 @@ void GameConfig::SetKeyBinding(GameConfigKeys key, Graphics::Key value)
 
 void GameConfig::InitDefaults()
 {
-	// This will be set to appropriate value in Application::m_LoadConfig.
-	// Do not set this to GameConfig::VERSION here. It will cause problems for config files with no ConfigVersion field.
+	// Do not set ConfigVersion to GameConfig::VERSION here. It will cause problems for config files with no ConfigVersion field.
+	// For a new config, ConfigVersion will be set to the appropriate value in Application::m_LoadConfig.
 	Set(GameConfigKeys::ConfigVersion, 0);
 
 	Set(GameConfigKeys::ScreenWidth, 1280);
@@ -65,6 +66,10 @@ void GameConfig::InitDefaults()
 	Set(GameConfigKeys::ShowFps, false);
 	Set(GameConfigKeys::ForcePortrait, false);
 	Set(GameConfigKeys::SkipScore, true);
+
+	Set(GameConfigKeys::HitWindowPerfect, HitWindow::NORMAL.perfect);
+	Set(GameConfigKeys::HitWindowGood, HitWindow::NORMAL.good);
+	Set(GameConfigKeys::HitWindowHold, HitWindow::NORMAL.hold);
 	Set(GameConfigKeys::HiSpeed, 1.0f);
 	Set(GameConfigKeys::GlobalOffset, 0);
 	Set(GameConfigKeys::InputOffset, 0);
@@ -83,6 +88,7 @@ void GameConfig::InitDefaults()
 	Set(GameConfigKeys::Laser1Color, 330.0f);
 	Set(GameConfigKeys::SongSelSensMult, 1.0f);
 
+	Set(GameConfigKeys::EnableHiddenSudden, false);
 	Set(GameConfigKeys::HiddenCutoff, 0.0f);
 	Set(GameConfigKeys::HiddenFade, 0.2f);
 	Set(GameConfigKeys::SuddenCutoff, 1.0f);
@@ -91,8 +97,16 @@ void GameConfig::InitDefaults()
 	Set(GameConfigKeys::DistantButtonScale, 1.0f);
 	Set(GameConfigKeys::BTOverFXScale, 0.8f);
 	Set(GameConfigKeys::DisableBackgrounds, false);
+	Set(GameConfigKeys::LeadInTime, 3000);
+	Set(GameConfigKeys::PracticeLeadInTime, 1500);
+	Set(GameConfigKeys::PracticeSetupNavEnabled, true);
+	Set(GameConfigKeys::RevertToSetupAfterScoreScreen, false);
+	Set(GameConfigKeys::DisplayPracticeInfoInGame, true);
+
+	SetEnum<Logger::Enum_Severity>(GameConfigKeys::LogLevel, Logger::Severity::Normal);
 
 	SetEnum<Enum_SpeedMods>(GameConfigKeys::SpeedMod, SpeedMods::MMod);
+	SetEnum<Enum_ScoreDisplayModes>(GameConfigKeys::ScoreDisplayMode, ScoreDisplayModes::Additive);
 
 	// Input settings
 	SetEnum<Enum_InputDevice>(GameConfigKeys::ButtonInputDevice, InputDevice::Keyboard);
@@ -168,6 +182,8 @@ void GameConfig::InitDefaults()
 	Set(GameConfigKeys::AutoResetToSpeed, 400.0f);
 	Set(GameConfigKeys::SlamThicknessMultiplier, 1.0f);
 
+	Set(GameConfigKeys::SettingsTreesOpen, 1);
+
 	SetEnum<Enum_AutoScoreScreenshotSettings>(GameConfigKeys::AutoScoreScreenshot, AutoScoreScreenshotSettings::Off);
 
 	Set(GameConfigKeys::EditorPath, "PathToEditor");
@@ -184,13 +200,15 @@ void GameConfig::InitDefaults()
 	Set(GameConfigKeys::MultiplayerPassword, "");
 	Set(GameConfigKeys::MultiplayerUsername, "");
 
-	Set(GameConfigKeys::RollIgnoreDuration, 100.f);
-	Set(GameConfigKeys::LaserSlamLength, 100.f);
+	Set(GameConfigKeys::EnableFancyHighwayRoll, true);
 
 	//Gameplay
 	Set(GameConfigKeys::RandomizeChart, false);
 	Set(GameConfigKeys::MirrorChart, false);
 	SetEnum<Enum_GaugeTypes>(GameConfigKeys::GaugeType, GaugeTypes::Normal);
+
+	Set(GameConfigKeys::GameplaySettingsDialogLastTab, 0);
+	Set(GameConfigKeys::TransferScoresOnChartUpdate, true);
 }
 
 void GameConfig::UpdateVersion()
@@ -201,17 +219,17 @@ void GameConfig::UpdateVersion()
 	// Abnormal cases
 	if (configVersion < 0)
 	{
-		Logf("The version of the config(%d) is invalid.", Logger::Error, configVersion);
+		Logf("The version of the config(%d) is invalid.", Logger::Severity::Error, configVersion);
 		return;
 	}
 	if (configVersion > GameConfig::VERSION)
 	{
 		Logf("The version of the config(%d) is higher than the maximum compatible version(%d). Try updating USC.",
-			Logger::Error, configVersion, GameConfig::VERSION);
+			Logger::Severity::Error, configVersion, GameConfig::VERSION);
 		return;
 	}
 
-	Logf("Updating the version of GameConfig from %d to %d...", Logger::Normal, configVersion, GameConfig::VERSION);
+	Logf("Updating the version of GameConfig from %d to %d...", Logger::Severity::Normal, configVersion, GameConfig::VERSION);
 
 	/* Config Conversion Code Collection */
 

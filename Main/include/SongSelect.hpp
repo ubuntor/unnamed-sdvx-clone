@@ -6,6 +6,9 @@
 
 struct SongSelectIndex
 {
+private:
+	FolderIndex* m_folder;
+	Vector<ChartIndex*> m_charts;
 public:
 	SongSelectIndex() = default;
 	SongSelectIndex(FolderIndex* folder)
@@ -44,9 +47,6 @@ public:
 	FolderIndex* GetFolder() const { return m_folder; }
 	Vector<ChartIndex*> GetCharts() const { return m_charts; }
 
-private:
-	FolderIndex* m_folder;
-	Vector<ChartIndex*> m_charts;
 };
 
 
@@ -61,4 +61,6 @@ public:
 	virtual ~SongSelect() = default;
 	static SongSelect* Create();
 	static SongSelect* Create(MultiplayerScreen*);
+
+	virtual ChartIndex* GetCurrentSelectedChart() { return 0; }
 };
