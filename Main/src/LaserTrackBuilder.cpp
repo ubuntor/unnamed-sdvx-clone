@@ -166,6 +166,73 @@ Mesh LaserTrackBuilder::GenerateTrackMesh(class BeatmapPlayback& playback, Laser
 		newMesh->SetData(verts);
 		newMesh->SetPrimitiveType(PrimitiveType::TriangleList);
 	}
+	else if (laser->curve_points[0] != laser->curve_points[1]) //curved segment
+	{
+		float prevLength = 0.0f;
+		if (laser->prev && (laser->prev->flags & LaserObjectState::flag_Instant) != 0)
+		{
+			// Previous slam length
+			prevLength = playback.DurationToViewDistanceAtTime(laser->prev->time, slamDuration) * laserLengthScale;
+		}
+
+		float extremities[2];
+
+		// Connecting center points
+		extremities[0] = prevLength; // Bottom
+		extremities[1] = length * laserLengthScale; // Top
+
+		float uMin = -0.5f;
+		float uMax = 1.5f;
+
+		float vStart = 0.0f;
+		float vEnd = (int)((length * laserLengthScale) / actualLaserHeight);
+		float vHeight = vEnd - vStart;
+
+		int subsegments = laser->duration / 10;
+		Vector<MeshGenerators::SimpleVertex> verts;
+		const float height = extremities[1] - extremities[0];
+		for (size_t i = 0; i < subsegments; i++)
+		{
+			Vector2 points[2];
+			float subsegment_start = (float)i / subsegments;
+			float subsegment_end = (float)(i + 1) / subsegments;
+
+			float vMin = subsegment_start * vHeight + vStart;
+			float vMax = subsegment_end * vHeight + vStart;
+
+			points[0].y = subsegment_start * height + extremities[0];
+			points[1].y = subsegment_end * height + extremities[0];
+
+			subsegment_start = subsegment_start * laser->duration + laser->time;
+			subsegment_end = subsegment_end * laser->duration + laser->time;
+
+			subsegment_start = laser->SamplePosition((MapTime)subsegment_start);
+			subsegment_end = laser->SamplePosition((MapTime)subsegment_end);
+
+
+			if ((laser->flags & LaserObjectState::flag_Extended) != 0)
+			{
+				points[0].x = (subsegment_start * 2.0f - 0.5f) * effectiveWidth - effectiveWidth * 0.5f;
+				points[1].x = (subsegment_end * 2.0f - 0.5f) * effectiveWidth - effectiveWidth * 0.5f;
+			}
+			else 
+			{
+				points[0].x = subsegment_start * effectiveWidth - effectiveWidth * 0.5f;
+				points[1].x = subsegment_end * effectiveWidth - effectiveWidth * 0.5f;
+			}
+			
+			verts.push_back(MeshGenerators::SimpleVertex({ { points[0].x - actualLaserWidth, points[0].y,  0.0f },{ uMin, vMax } })); // BL
+			verts.push_back(MeshGenerators::SimpleVertex({ { points[0].x + actualLaserWidth, points[0].y,  0.0f },{ uMax, vMax } })); // BR
+			verts.push_back(MeshGenerators::SimpleVertex({ { points[1].x + actualLaserWidth, points[1].y,  0.0f },{ uMax, vMin } })); // TR
+			verts.push_back(MeshGenerators::SimpleVertex({ { points[0].x - actualLaserWidth, points[0].y,  0.0f },{ uMin, vMax } })); // BL
+			verts.push_back(MeshGenerators::SimpleVertex({ { points[1].x + actualLaserWidth, points[1].y,  0.0f },{ uMax, vMin } })); // TR
+			verts.push_back(MeshGenerators::SimpleVertex({ { points[1].x - actualLaserWidth, points[1].y,  0.0f },{ uMin, vMin } })); // TL
+		}
+
+
+		newMesh->SetData(verts);
+		newMesh->SetPrimitiveType(PrimitiveType::TriangleList);
+	}
 	else
 	{
 		float prevLength = 0.0f;

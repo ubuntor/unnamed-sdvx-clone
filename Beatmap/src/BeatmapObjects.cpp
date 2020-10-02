@@ -53,8 +53,23 @@ float ObjectTypeData_Laser::SamplePosition(MapTime time) const
 	{
 		state = state->next;
 	}
-	float f = Math::Clamp((float)(time - state->time) / (float)Math::Max(1, state->duration), 0.0f, 1.0f);
-	return (state->points[1] - state->points[0]) * f + state->points[0];
+	float x = Math::Clamp((float)(time - state->time) / (float)Math::Max(1, state->duration), 0.0f, 1.0f);
+	if (state->curve_points[0] != state->curve_points[1])
+	{
+		constexpr auto epsilon = std::numeric_limits<float>::epsilon();
+		const float& a = state->curve_points[0];
+		const float& b = state->curve_points[1];
+		float t;
+		if (x < epsilon || a < epsilon)
+		{
+			t = (a - sqrt(a * a + x - 2.0 * a * x)) / (-1.0 + 2.0 * a);
+		}
+		else {
+			t = x / (a + sqrt(a * a + (1.0 - 2.0 * a) * x));
+		}
+		x = 2.0 * (1.0 - t) * t * b + t * t;
+	}
+	return (state->points[1] - state->points[0]) * x + state->points[0];
 }
 
 float ObjectTypeData_Laser::ConvertToNormalRange(float inputRange)

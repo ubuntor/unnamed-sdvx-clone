@@ -290,6 +290,7 @@ bool Beatmap::m_ProcessKSON(BinaryStream& input, bool metadataOnly)
 				checkedGet(segment, "y", startTick);
 				LaserObjectState* prev = nullptr;
 				int prevRelative = INT_MIN;
+				float prevCurve[2] = { 0.0 };
 				double prevValue = 0;
 				int laneIdx = 0;
 				for (auto& gp : segment["v"])
@@ -311,6 +312,8 @@ bool Beatmap::m_ProcessKSON(BinaryStream& input, bool metadataOnly)
 						obj->index = i;
 						obj->points[0] = prevValue;
 						obj->points[1] = value;
+						obj->curve_points[0] = prevCurve[0];
+						obj->curve_points[1] = prevCurve[1];
 						if(prev)
 							prev->next = obj;
 						obj->prev = prev;
@@ -320,6 +323,14 @@ bool Beatmap::m_ProcessKSON(BinaryStream& input, bool metadataOnly)
 					}
 					prevRelative = relativeTick;
 					prevValue = value;
+					if (!checkedGet(gp, "a", prevCurve[0]))
+					{
+						prevCurve[0] = 0.0f;
+					}
+					if (!checkedGet(gp, "b", prevCurve[1]))
+					{
+						prevCurve[1] = 0.0f;
+					}
 					if (checkedGet(gp, "vf", valueFinal) && value != valueFinal) //add slam
 					{
 						LaserObjectState* obj = new LaserObjectState();
@@ -331,6 +342,8 @@ bool Beatmap::m_ProcessKSON(BinaryStream& input, bool metadataOnly)
 						obj->index = i;
 						obj->points[0] = value;
 						obj->points[1] = valueFinal;
+						obj->curve_points[0] = 0.0f;
+						obj->curve_points[1] = 0.0f;
 						if (prev) {
 							prev->next = obj;
 							obj->prev = prev;
@@ -349,74 +362,77 @@ bool Beatmap::m_ProcessKSON(BinaryStream& input, bool metadataOnly)
 
 	//Effect entries
 	auto& audioEffect = audio["audio_effect"];
-	auto& effectNoteEvent = audioEffect["note_event"];
-	EffectTypeMap effectMap = EffectTypeMap();
-
-	if (effectNoteEvent.is_object())
+	if (audioEffect.is_object())
 	{
-		for (auto& effect : effectNoteEvent.items())
-		{
-			String effectTypeName = effect.key();
-			auto* effectType = effectMap.FindEffectType(effectTypeName);
-			if (effectType == nullptr)
-			{
-				//TODO: Deal with custom effects
-				Logf("Unknown effect type: %s", Logger::Severity::Warning, *effectTypeName);
-				continue;
-			}
+		auto& effectNoteEvent = audioEffect["note_event"];
+		EffectTypeMap effectMap = EffectTypeMap();
 
-			auto& fx = effect.value()["fx"];
-			if (fx.is_array())
+		if (effectNoteEvent.is_object())
+		{
+			for (auto& effect : effectNoteEvent.items())
 			{
-				for (auto& fxEntry : fx)
+				String effectTypeName = effect.key();
+				auto* effectType = effectMap.FindEffectType(effectTypeName);
+				if (effectType == nullptr)
 				{
-					int laneIdx, noteIdx;
-					fxEntry.at("idx").get_to(noteIdx);
-					fxEntry.at("lane").get_to(laneIdx);
-					laneIdx += 4;
-					int params[2] = { 0, 0 };
-					params[0] = effectMap.GetDefaultParam(*effectType);
-					//set params
-					if (fxEntry.contains("v") && fxEntry.at("v").is_object())
+					//TODO: Deal with custom effects
+					Logf("Unknown effect type: %s", Logger::Severity::Warning, *effectTypeName);
+					continue;
+				}
+
+				auto& fx = effect.value()["fx"];
+				if (fx.is_array())
+				{
+					for (auto& fxEntry : fx)
 					{
-						for (auto& param : fxEntry.at("v").items())
+						int laneIdx, noteIdx;
+						fxEntry.at("idx").get_to(noteIdx);
+						fxEntry.at("lane").get_to(laneIdx);
+						laneIdx += 4;
+						int params[2] = { 0, 0 };
+						params[0] = effectMap.GetDefaultParam(*effectType);
+						//set params
+						if (fxEntry.contains("v") && fxEntry.at("v").is_object())
 						{
-							//TODO: Deal with multiple values in value array
-							if (!param.value().is_array())
-								continue;
-							String value;
-							param.value().at(0).get_to(value);
-							
-							switch (*effectType)
+							for (auto& param : fxEntry.at("v").items())
 							{
-							case EffectType::Bitcrush:
-								if (param.key() == "reduction")
-									params[0] = std::stoi(value);
-								break;
-							case EffectType::TapeStop:
-								if (param.key() == "speed")
-									params[0] = std::stoi(value);
-								break;
-							default:
-								break;
+								//TODO: Deal with multiple values in value array
+								if (!param.value().is_array())
+									continue;
+								String value;
+								param.value().at(0).get_to(value);
+
+								switch (*effectType)
+								{
+								case EffectType::Bitcrush:
+									if (param.key() == "reduction")
+										params[0] = std::stoi(value);
+									break;
+								case EffectType::TapeStop:
+									if (param.key() == "speed")
+										params[0] = std::stoi(value);
+									break;
+								default:
+									break;
+								}
 							}
 						}
-					}
-					if (laneIdx < 0 || laneIdx > 5)
-					{
-						Logf("Out of bounds button lane: %d", Logger::Severity::Warning, laneIdx);
-						continue;
-					}
-					if (btnMap[laneIdx].Contains(noteIdx))
-					{
-						ObjectState* obj = btnMap[laneIdx][noteIdx];
-						if (obj->type == ObjectType::Hold)
+						if (laneIdx < 0 || laneIdx > 5)
 						{
-							HoldObjectState* button = (HoldObjectState*)obj;
-							button->effectType = *effectType;
-							for (size_t i = 0; i < 2; i++)
+							Logf("Out of bounds button lane: %d", Logger::Severity::Warning, laneIdx);
+							continue;
+						}
+						if (btnMap[laneIdx].Contains(noteIdx))
+						{
+							ObjectState* obj = btnMap[laneIdx][noteIdx];
+							if (obj->type == ObjectType::Hold)
 							{
-								button->effectParams[i] = static_cast<int16>(params[i]);
+								HoldObjectState* button = (HoldObjectState*)obj;
+								button->effectType = *effectType;
+								for (size_t i = 0; i < 2; i++)
+								{
+									button->effectParams[i] = static_cast<int16>(params[i]);
+								}
 							}
 						}
 					}
@@ -424,7 +440,6 @@ bool Beatmap::m_ProcessKSON(BinaryStream& input, bool metadataOnly)
 			}
 		}
 	}
-
 	for (auto& bpm : bpm_entries)
 	{
 		TimingPoint* newTp = new TimingPoint();

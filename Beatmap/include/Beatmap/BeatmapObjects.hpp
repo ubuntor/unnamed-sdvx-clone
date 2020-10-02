@@ -200,6 +200,8 @@ struct ObjectTypeData_Laser
 	uint8 flags = 0;
 	// Position of the laser on the track
 	float points[2];
+	// Curve control points, [a, b]
+	float curve_points[2] = { 0.0f };
 	// Set the to the object state that connects to this laser, if any, otherwise null
 	TObjectState<ObjectTypeData_Laser> *next = nullptr;
 	TObjectState<ObjectTypeData_Laser> *prev = nullptr;
