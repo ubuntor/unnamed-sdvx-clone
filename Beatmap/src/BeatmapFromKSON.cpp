@@ -361,7 +361,7 @@ bool Beatmap::m_ProcessKSON(BinaryStream& input, bool metadataOnly)
 			if (effectType == nullptr)
 			{
 				//TODO: Deal with custom effects
-				Logf("Unknown effect type: %s", Logger::Warning, *effectTypeName);
+				Logf("Unknown effect type: %s", Logger::Severity::Warning, *effectTypeName);
 				continue;
 			}
 
@@ -404,7 +404,7 @@ bool Beatmap::m_ProcessKSON(BinaryStream& input, bool metadataOnly)
 					}
 					if (laneIdx < 0 || laneIdx > 5)
 					{
-						Logf("Out of bounds button lane: %d", Logger::Warning, laneIdx);
+						Logf("Out of bounds button lane: %d", Logger::Severity::Warning, laneIdx);
 						continue;
 					}
 					if (btnMap[laneIdx].Contains(noteIdx))
