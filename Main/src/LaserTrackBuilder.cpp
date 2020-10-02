@@ -188,7 +188,7 @@ Mesh LaserTrackBuilder::GenerateTrackMesh(class BeatmapPlayback& playback, Laser
 		float vEnd = (int)((length * laserLengthScale) / actualLaserHeight);
 		float vHeight = vEnd - vStart;
 
-		int subsegments = laser->duration / 10;
+		size_t subsegments = std::max(laser->duration / 5, 1);
 		Vector<MeshGenerators::SimpleVertex> verts;
 		const float height = extremities[1] - extremities[0];
 		for (size_t i = 0; i < subsegments; i++)
