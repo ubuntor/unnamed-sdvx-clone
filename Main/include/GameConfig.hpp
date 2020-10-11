@@ -57,6 +57,7 @@ DefineEnum(GameConfigKeys,
 		   BTOverFXScale,
 		   DisableBackgrounds,
 		   ScoreDisplayMode,
+	       LaserCurveQuality,
 
 		   LeadInTime,
 		   PracticeLeadInTime,
@@ -182,6 +183,12 @@ DefineEnum(ScoreDisplayModes,
 		   Additive,
 		   Subtractive,
 		   Average)
+
+DefineEnum(QualityOption,
+	       Low,
+	       Medium,
+	       High,
+	       Max)
 
 #ifdef Always
 #undef Always

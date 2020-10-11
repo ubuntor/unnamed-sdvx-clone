@@ -19,6 +19,23 @@ LaserTrackBuilder::LaserTrackBuilder(class OpenGL* gl, class Track* track, uint3
 	laserTextureSize = track->laserTextures[0]->GetSize(); // NOTE: expects left/right textures to be the same size!
 	laserEntryTextureSize = track->laserTailTextures[0]->GetSize();
 	laserExitTextureSize = track->laserTailTextures[2]->GetSize();
+
+	//the setting should just index an array or something
+	switch (g_gameConfig.GetEnum<Enum_QualityOption>(GameConfigKeys::LaserCurveQuality))
+	{
+		case QualityOption::Low:
+			m_curveSegmentLength = 20;
+			break;
+		case QualityOption::Medium:
+			m_curveSegmentLength = 5;
+			break;
+		case QualityOption::High:
+			m_curveSegmentLength = 2;
+			break;
+		case QualityOption::Max:
+			m_curveSegmentLength = 1;
+			break;
+	}
 }
 Mesh LaserTrackBuilder::GenerateTrackMesh(class BeatmapPlayback& playback, LaserObjectState* laser)
 {
@@ -188,7 +205,7 @@ Mesh LaserTrackBuilder::GenerateTrackMesh(class BeatmapPlayback& playback, Laser
 		float vEnd = (int)((length * laserLengthScale) / actualLaserHeight);
 		float vHeight = vEnd - vStart;
 
-		size_t subsegments = std::max(laser->duration / 5, 1);
+		size_t subsegments = std::max(laser->duration / m_curveSegmentLength, 1);
 		Vector<MeshGenerators::SimpleVertex> verts;
 		const float height = extremities[1] - extremities[0];
 		for (size_t i = 0; i < subsegments; i++)

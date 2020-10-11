@@ -59,6 +59,7 @@ private:
 
 	float m_trackWidth;
 	float m_laserWidth;
+	MapTime m_curveSegmentLength;
 	uint32 m_laserIndex;
 	Map<LaserObjectState*, Mesh> m_objectCache;
 	Map<LaserObjectState*, Mesh> m_cachedEntries;

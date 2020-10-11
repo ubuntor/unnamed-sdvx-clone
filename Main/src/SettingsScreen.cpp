@@ -851,6 +851,8 @@ public:
 
 			EnumSetting<Enum_ScoreDisplayModes>(GameConfigKeys::ScoreDisplayMode, "In-game score display is:");
 
+			EnumSetting<Enum_QualityOption>(GameConfigKeys::LaserCurveQuality, "Laser curve quality:");
+
 			RenderSettingsLaserColor();
 
 			ToggleSetting(GameConfigKeys::DisplayPracticeInfoInGame, "Show practice info during gameplay");
