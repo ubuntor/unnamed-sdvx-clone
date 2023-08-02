@@ -192,7 +192,10 @@ int32 Application::Run()
 				AddTickable(ss);
 			}
 			else // Start regular game, goto title screen
+			{
+				g_audio->SetGlobalVolume(g_gameConfig.GetFloat(GameConfigKeys::MasterVolume));
 				AddTickable(TitleScreen::Create());
+			}
 		}
 	}
 
