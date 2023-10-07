@@ -2205,11 +2205,41 @@ public:
 
 	void OnButtonHit(Input::Button button, ScoreHitRating rating, ObjectState* hitObject, MapTime delta)
 	{
+		auto luaPopInt = [this] {
+			int a = lua_tonumber(m_lua, lua_gettop(m_lua));
+			lua_pop(m_lua, 1);
+			return a;
+		};
+
 		ButtonObjectState* st = (ButtonObjectState*)hitObject;
 		uint32 buttonIdx = (uint32)button;
 		Color c = m_track->hitColors[(size_t)rating];
-		auto buttonIndex = (uint32) button;
+		auto buttonIndex = (uint32)button;
 		bool skipEffect = m_scoring.HoldObjectAvailable(buttonIndex, false) && (!m_delayedHitEffects || buttonIndex > 3);
+
+
+		//call lua button_hit if it exists
+		lua_getglobal(m_lua, "button_hit");
+		if (lua_isfunction(m_lua, -1))
+		{
+			lua_pushnumber(m_lua, buttonIdx);
+			lua_pushnumber(m_lua, (int)rating);
+			lua_pushnumber(m_lua, delta);
+			if (lua_pcall(m_lua, 3, 3, 0) != 0)
+			{
+				Logf("Lua error on calling button_hit: %s", Logger::Severity::Error, lua_tostring(m_lua, -1));
+			}
+
+			uint8 b = luaPopInt();
+			uint8 g = luaPopInt();
+			uint8 r = luaPopInt();
+
+			if ((r | g | b) > 0) {
+				c = Color(Colori(r, g, b));
+			}
+
+		}
+		lua_settop(m_lua, 0);
 
 		if (!skipEffect)
             m_track->AddHitEffect(buttonIdx, c, st && st->type == ObjectType::Hold);
@@ -2257,46 +2287,53 @@ public:
 			}
 		}
 
-		//call lua button_hit if it exists
-		lua_getglobal(m_lua, "button_hit");
-		if (lua_isfunction(m_lua, -1))
-		{
-			lua_pushnumber(m_lua, buttonIdx);
-			lua_pushnumber(m_lua, (int)rating);
-			lua_pushnumber(m_lua, delta);
-			if (lua_pcall(m_lua, 3, 0, 0) != 0)
-			{
-				Logf("Lua error on calling button_hit: %s", Logger::Severity::Error, lua_tostring(m_lua, -1));
-			}
-		}
-		lua_settop(m_lua, 0);
+
 	}
 
 	void OnButtonMiss(Input::Button button, bool hitEffect, ObjectState* object)
 	{
 		uint32 buttonIdx = (uint32)button;
-		if (hitEffect)
-		{
-			ButtonObjectState* st = (ButtonObjectState*)object;
-			//m_hiddenObjects.insert(object);
-			Color c = m_track->hitColors[0];
-			m_track->AddHitEffect(buttonIdx, c);
-		}
-		m_track->AddEffect(new ButtonHitRatingEffect(buttonIdx, ScoreHitRating::Miss));
 
+		auto luaPopInt = [this] {
+			int a = lua_tonumber(m_lua, lua_gettop(m_lua));
+			lua_pop(m_lua, 1);
+			return a;
+		};
+		Color c = m_track->hitColors[0];
 
+		//call lua button_hit if it exists
 		lua_getglobal(m_lua, "button_hit");
 		if (lua_isfunction(m_lua, -1))
 		{
 			lua_pushnumber(m_lua, buttonIdx);
 			lua_pushnumber(m_lua, (int)ScoreHitRating::Miss);
 			lua_pushnumber(m_lua, 0);
-			if (lua_pcall(m_lua, 3, 0, 0) != 0)
+			if (lua_pcall(m_lua, 3, 3, 0) != 0)
 			{
 				Logf("Lua error on calling button_hit: %s", Logger::Severity::Error, lua_tostring(m_lua, -1));
 			}
+
+			uint8 b = luaPopInt();
+			uint8 g = luaPopInt();
+			uint8 r = luaPopInt();
+
+			if ((r | g | b) > 0) {
+				c = Color(Colori(r, g, b));
+			}
 		}
 		lua_settop(m_lua, 0);
+
+
+		if (hitEffect)
+		{
+			ButtonObjectState* st = (ButtonObjectState*)object;
+			//m_hiddenObjects.insert(object);
+			m_track->AddHitEffect(buttonIdx, c);
+		}
+		m_track->AddEffect(new ButtonHitRatingEffect(buttonIdx, ScoreHitRating::Miss));
+
+
+
 	}
 
 	void OnComboChanged(uint32 newCombo)
