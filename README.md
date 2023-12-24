@@ -97,8 +97,8 @@ To run from Visual Studio, go to Properties for Main > Debugging > Working Direc
 ### macOS:
 0. Clone the project using `git` and then run `git submodule update --init --recursive` to download the required submodules.
 1. Install dependencies
-	* [Homebrew](https://github.com/Homebrew/brew): `brew install cmake freetype libvorbis sdl2 libpng jpeg libarchive libiconv`
-2. Run `mac-cmake.sh` and then `make` from the root of the project.
+	* [Homebrew](https://github.com/Homebrew/brew): `brew install cmake freetype libvorbis sdl2 libpng jpeg-turbo libarchive libiconv`
+2. Run `cmake -DCMAKE_BUILD_TYPE=Release .` and then `make` from the root of the project.
 3. Run the executable made in the 'bin' folder.
 
 ### Embedded (Raspberry Pi):
