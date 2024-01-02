@@ -94,12 +94,11 @@ jobs:
             - name: brew update
               run: brew update
             - name: Install packages
-              run: brew install freetype libvorbis sdl2 libpng jpeg libarchive
+              run: brew install freetype libvorbis sdl2 libpng jpeg-turbo libarchive
             - name: cmake
-              run: |
-                eval "$(brew shellenv)"
-                rm ./vcpkg.json
-                cmake . -DLibArchive_LIBRARY=$HOMEBREW_PREFIX/opt/libarchive/lib/libarchive.dylib -DLibArchive_INCLUDE_DIR=$HOMEBREW_PREFIX/opt/libarchive/include -DCMAKE_BUILD_TYPE=Release
+              env:
+                DCMAKE_BUILD_TYPE: Release
+              run: cmake .
             - name: make
               run: make
             - name: Upload artifact
