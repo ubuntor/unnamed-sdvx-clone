@@ -1,6 +1,7 @@
 /* Main and precompiled header file for Main project*/
 #pragma once
 
+#include "cpr/cpr.h"
 // OpenGL headers
 #include <Graphics/GL.hpp>
 
@@ -57,7 +58,6 @@ using namespace Graphics;
 
 #include "archive.h"
 #include "archive_entry.h"
-#include "cpr/cpr.h"
 #include "discord_rpc.h"
 #include "json.hpp"
 #include "lua.hpp"
