@@ -50,7 +50,7 @@ private:
 	//promote this to higher scope so i can use it in tick
 	String m_replayPath;
 
-	cpr::AsyncResponse m_irResponse;
+	std::unique_ptr<cpr::AsyncResponse> m_irResponse;
 	nlohmann::json m_irResponseJson;
 
 	HitWindow m_hitWindow = HitWindow::NORMAL;
@@ -349,7 +349,7 @@ private:
 		if (g_gameConfig.GetString(GameConfigKeys::IRBaseURL) != "")
 		{
 			m_irState = IR::ResponseState::Pending;
-			m_irResponse = IR::PostScore(*newScore, m_beatmapSettings);
+			m_irResponse = std::make_unique<cpr::AsyncResponse>(std::move(IR::PostScore(*newScore, m_beatmapSettings)));
 		}
 
 		const bool cleared = Scoring::CalculateBadge(*newScore) >= ClearMark::NormalClear;
@@ -560,7 +560,7 @@ public:
 	}
 
 	ScoreScreen_Impl(class Game* game, MultiplayerScreen* multiplayer,
-		String uid, Vector<nlohmann::json> const* multistats, ChallengeManager* manager)
+		String uid, Vector<nlohmann::json> const* multistats, ChallengeManager* manager) : m_irResponse(nullptr)
 	{
 		m_challengeManager = manager;
 		m_displayIndex = 0;
@@ -1174,9 +1174,9 @@ public:
 			try {
 
 
-				if(m_irResponse.wait_for(std::chrono::seconds(0)) == std::future_status::ready)
+				if(m_irResponse->wait_for(std::chrono::seconds(0)) == std::future_status::ready)
 				{
-					cpr::Response response = m_irResponse.get();
+					cpr::Response response = m_irResponse->get();
 
 		        	if(response.status_code != 200)
 					{

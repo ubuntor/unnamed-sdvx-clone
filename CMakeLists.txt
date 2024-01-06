@@ -1,5 +1,7 @@
 # Root CMake file
 cmake_minimum_required(VERSION 3.12)
+set(CMAKE_CXX_STANDARD 17 CACHE STRING "v")
+set(CMAKE_CXX_STANDARD_REQUIRED True)
 #set(VCPKG_CRT_LINKAGE static)
 #set(VCPKG_LIBRARY_LINKAGE static)
 #set(VCPKG_TARGET_TRIPLET "x64-windows-static" CACHE STRING "Vcpkg target triplet (ex. x86-windows)")
@@ -14,6 +16,7 @@ endif()
 
 option(BUILD_SHARED_LIBS "Build libraries as shared libraries" OFF)
 option(USC_GNU_WERROR "Set Werror for gcc." OFF)
+option(USE_SYSTEM_CPR "Use system CPR" OFF)
 
 project(USC VERSION 0.5.0)
 if(WIN32 AND ${CMAKE_VERSION} VERSION_GREATER "3.12")

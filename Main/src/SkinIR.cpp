@@ -141,10 +141,7 @@ SkinIR::~SkinIR()
 int SkinIR::lHeartbeat(struct lua_State* L)
 {
     int callback = luaL_ref(L, LUA_REGISTRYINDEX);
-    AsyncRequest* r = new AsyncRequest();
-    r->r = IR::Heartbeat();
-    r->callback = callback;
-    r->L = L;
+    AsyncRequest* r = new AsyncRequest(L, IR::Heartbeat(), callback);
     m_mutex.lock();
     m_requests.push(r);
     m_mutex.unlock();
@@ -155,10 +152,7 @@ int SkinIR::lChartTracked(struct lua_State* L)
 {
     String hash = luaL_checkstring(L, 2);
 	int callback = luaL_ref(L, LUA_REGISTRYINDEX);
-	AsyncRequest* r = new AsyncRequest();
-	r->r = IR::ChartTracked(hash);
-	r->callback = callback;
-	r->L = L;
+	AsyncRequest* r = new AsyncRequest(L, IR::ChartTracked(hash), callback);
 	m_mutex.lock();
 	m_requests.push(r);
 	m_mutex.unlock();
@@ -169,10 +163,7 @@ int SkinIR::lRecord(struct lua_State* L)
 {
     String hash = luaL_checkstring(L, 2);
 	int callback = luaL_ref(L, LUA_REGISTRYINDEX);
-	AsyncRequest* r = new AsyncRequest();
-	r->r = IR::Record(hash);
-	r->callback = callback;
-	r->L = L;
+	AsyncRequest* r = new AsyncRequest(L, IR::Record(hash), callback);
 	m_mutex.lock();
 	m_requests.push(r);
 	m_mutex.unlock();
@@ -185,10 +176,7 @@ int SkinIR::lLeaderboard(struct lua_State* L)
     String mode = luaL_checkstring(L, 3);
     int n = luaL_checkinteger(L, 4);
 	int callback = luaL_ref(L, LUA_REGISTRYINDEX);
-	AsyncRequest* r = new AsyncRequest();
-	r->r = IR::Leaderboard(hash, mode, n);
-	r->callback = callback;
-	r->L = L;
+	AsyncRequest* r = new AsyncRequest(L, IR::Leaderboard(hash, mode, n), callback);
 	m_mutex.lock();
 	m_requests.push(r);
 	m_mutex.unlock();
