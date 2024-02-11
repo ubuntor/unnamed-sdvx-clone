@@ -165,3 +165,6 @@ if(MSVC)
     set_target_properties(Tests.Game PROPERTIES FOLDER "Tests")
 
 endif(MSVC)
+
+install(TARGETS usc-game RUNTIME)
+install(DIRECTORY bin/ DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/unnamed-sdvx-clone)
