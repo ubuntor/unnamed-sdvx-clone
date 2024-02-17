@@ -165,3 +165,9 @@ if(MSVC)
     set_target_properties(Tests.Game PROPERTIES FOLDER "Tests")
 
 endif(MSVC)
+
+install(TARGETS usc-game RUNTIME)
+install(DIRECTORY bin/audio DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/unnamed-sdvx-clone/audio)
+install(DIRECTORY bin/fonts DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/unnamed-sdvx-clone/fonts)
+install(DIRECTORY bin/LightPlugins DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/unnamed-sdvx-clone/LightPlugins)
+install(DIRECTORY bin/skins DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/unnamed-sdvx-clone/skins)
