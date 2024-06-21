@@ -18,7 +18,7 @@ option(BUILD_SHARED_LIBS "Build libraries as shared libraries" OFF)
 option(USC_GNU_WERROR "Set Werror for gcc." OFF)
 option(USE_SYSTEM_CPR "Use system CPR" OFF)
 
-project(USC VERSION 0.5.0)
+project(USC VERSION 0.6.0)
 if(WIN32 AND ${CMAKE_VERSION} VERSION_GREATER "3.12")
     cmake_policy(SET CMP0079 NEW)
 endif()
