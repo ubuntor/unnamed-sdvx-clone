@@ -68,6 +68,7 @@ Just run 'usc-game' or 'usc-game_Debug' from within the 'bin' folder.
 - `-autoskip` - Skips beginning of song to the first chart note
 - `-debug` - Used to show relevant debug info in game such as hit timings, and scoring debug info
 - `-test` - Runs test scene, for development purposes only
+- `-gamedir` - Sets the directory the game loads assets from. If unset, attempts reading from `$XDG_DATA_HOME/unnamed-sdvx-clone`. Finally, uses the executable directory if all else fails.
 
 ## How to build:
 
@@ -97,8 +98,8 @@ To run from Visual Studio, go to Properties for Main > Debugging > Working Direc
 ### macOS:
 0. Clone the project using `git` and then run `git submodule update --init --recursive` to download the required submodules.
 1. Install dependencies
-	* [Homebrew](https://github.com/Homebrew/brew): `brew install cmake freetype libvorbis sdl2 libpng jpeg libarchive libiconv`
-2. Run `mac-cmake.sh` and then `make` from the root of the project.
+	* [Homebrew](https://github.com/Homebrew/brew): `brew install cmake freetype libvorbis sdl2 libpng jpeg-turbo libarchive libiconv`
+2. Run `cmake -DCMAKE_BUILD_TYPE=Release .` and then `make` from the root of the project.
 3. Run the executable made in the 'bin' folder.
 
 ### Embedded (Raspberry Pi):

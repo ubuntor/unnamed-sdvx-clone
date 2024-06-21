@@ -8,8 +8,12 @@ set(CPR_ENABLE_SSL ON)
 #if(MSVC)
 #    set(CPR_FORCE_USE_SYSTEM_CURL ON) #curl should be available through vcpkg
 #endif(MSVC)
-add_subdirectory(cpr)
-target_include_directories(cpr PUBLIC ${CPR_INCLUDE_DIRS})
+if(USE_SYSTEM_CPR)
+    find_package(cpr REQUIRED)
+else()
+    add_subdirectory(cpr)
+    target_include_directories(cpr PUBLIC ${CPR_INCLUDE_DIRS})
+endif(USE_SYSTEM_CPR)
 
 #discord example program
 option(BUILD_EXAMPLES "Build example apps" OFF)
