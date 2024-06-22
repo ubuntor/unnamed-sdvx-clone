@@ -16,6 +16,7 @@ else()
 endif(USE_SYSTEM_CPR)
 
 #discord example program
+set(CLANG_FORMAT_SUFFIX "ignore") #try to disable clang formatter
 option(BUILD_EXAMPLES "Build example apps" OFF)
 add_subdirectory(discord-rpc)
 target_include_directories(discord-rpc PUBLIC discord-rpc/include)
