@@ -1,5 +1,5 @@
 # Root CMake file
-cmake_minimum_required(VERSION 3.12)
+cmake_minimum_required(VERSION 3.5)
 set(CMAKE_CXX_STANDARD 17 CACHE STRING "v")
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 #set(VCPKG_CRT_LINKAGE static)
@@ -21,6 +21,9 @@ option(USE_SYSTEM_CPR "Use system CPR" OFF)
 project(USC VERSION 0.6.0)
 if(WIN32 AND ${CMAKE_VERSION} VERSION_GREATER "3.12")
     cmake_policy(SET CMP0079 NEW)
+endif()
+if (${CMAKE_VERSION} VERSION_GREATER "4.0")
+    set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
 endif()
 # Project configurations
 set(CMAKE_CONFIGURATION_TYPES Debug Release)
@@ -66,6 +69,20 @@ if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
         COMMAND_ERROR_IS_FATAL ANY
     )
     set(LibArchive_INCLUDE_DIR "${LIBARCHIVE_PREFIX}/include")
+endif()
+
+# Set path for discord-rpc dependency so that it doesn't download old version
+if (${CMAKE_VERSION} VERSION_GREATER "4.0")
+    file(
+        MAKE_DIRECTORY
+        ${PROJECT_SOURCE_DIR}/third_party/discord-rpc/thirdparty/
+    )
+    file(
+        CREATE_LINK
+        ${PROJECT_SOURCE_DIR}/third_party/rapidjson
+        ${PROJECT_SOURCE_DIR}/third_party/discord-rpc/thirdparty/rapidjson
+        SYMBOLIC
+    )
 endif()
 
 # Set folder where to find FindXXX.cmake and
@@ -147,6 +164,7 @@ if(MSVC)
     set_target_properties(nanovg PROPERTIES FOLDER "Third Party")
     set_target_properties(sqlite3 PROPERTIES FOLDER "Third Party")
     set_target_properties(discord-rpc PROPERTIES FOLDER "Third Party")
+    set_target_properties(rapidjson PROPERTIES FOLDER "Third Party")
     set_target_properties(minimp3 PROPERTIES FOLDER "Third Party")
     set_target_properties(soundtouch PROPERTIES FOLDER "Third Party")
     set_target_properties(lua PROPERTIES FOLDER "Third Party")
