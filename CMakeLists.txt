@@ -1,5 +1,5 @@
 # Root CMake file
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.12)
 set(CMAKE_CXX_STANDARD 17 CACHE STRING "v")
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 #set(VCPKG_CRT_LINKAGE static)
@@ -23,7 +23,7 @@ if(WIN32 AND ${CMAKE_VERSION} VERSION_GREATER "3.12")
     cmake_policy(SET CMP0079 NEW)
 endif()
 if (${CMAKE_VERSION} VERSION_GREATER "4.0")
-    set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
+    set(CMAKE_POLICY_VERSION_MINIMUM 3.12)
 endif()
 # Project configurations
 set(CMAKE_CONFIGURATION_TYPES Debug Release)
